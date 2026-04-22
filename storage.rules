@@ -1,0 +1,11 @@
+rules_version = '2';
+
+// Reglas Zero-Trust: Nadie puede leer/escribir excepto el backend (Admin SDK ignora estas reglas)
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /{allPaths=**} {
+      allow read: if true; // Lectura pública para que las URL de los comprobantes carguen en el dashboard
+      allow write: if false; // Solo el backend puede subir imágenes
+    }
+  }
+}

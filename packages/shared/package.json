@@ -1,6 +1,16 @@
 {
   "name": "@cgpa/shared",
   "version": "1.0.0",
-  "main": "index.ts",
-  "private": true
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "private": true,
+  "scripts": {
+    "build": "tsc"
+  },
+  "dependencies": {
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "typescript": "^6.0.3"
+  }
 }
