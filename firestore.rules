@@ -1,0 +1,13 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Regla global: Bloquear todas las escrituras desde el cliente
+    // (Todas las escrituras deben ir a través de NestJS con Admin SDK)
+    match /{document=**} {
+      allow read: if true;
+      allow write: if false; 
+    }
+  }
+}
