@@ -26,7 +26,7 @@ export const useFinanzasStore = defineStore('finanzas', () => {
     });
 
     const proyRef = collection(db, 'proyectos');
-    const q = query(proyRef, orderBy('fecha_inicio', 'desc'), limit(5));
+    const q = query(proyRef, orderBy('fecha_inicio', 'desc'), limit(50));
     unsubscribeProy = onSnapshot(q, (snapshot) => {
       const data: (Proyecto & { id: string })[] = [];
       snapshot.forEach(doc => {

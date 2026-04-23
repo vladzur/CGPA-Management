@@ -8,6 +8,16 @@ const router = createRouter({
       path: '/',
       name: 'dashboard',
       component: Dashboard
+    },
+    {
+      path: '/proyectos',
+      name: 'ProjectList',
+      component: () => import('../views/ProjectList.vue')
+    },
+    {
+      path: '/proyectos/:id',
+      name: 'ProjectDetail',
+      component: () => import('../views/ProjectDetail.vue')
     }
   ]
 })
