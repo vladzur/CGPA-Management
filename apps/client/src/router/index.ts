@@ -11,6 +11,11 @@ const router = createRouter({
       component: PublicView
     },
     {
+      path: '/login',
+      name: 'Login',
+      component: () => import('../views/Login.vue')
+    },
+    {
       path: '/registro-interno-agb',
       name: 'Register',
       component: () => import('../views/Register.vue')
@@ -59,7 +64,7 @@ router.beforeEach(async (to, _from, next) => {
 
   if (to.meta.requiresAuth) {
     if (!authStore.user) {
-      return next('/registro-interno-agb')
+      return next('/login')
     }
     
     // Verificamos claim 'activo' para dejar pasar al admin general
