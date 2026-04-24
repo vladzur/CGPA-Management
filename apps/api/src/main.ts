@@ -23,6 +23,7 @@ async function bootstrap() {
   }
 
   const app = await NestFactory.create(AppModule);
+  app.setGlobalPrefix('api'); // Agregado para que coincida con el rewrite de Firebase Hosting
   app.enableCors(); // Opcional, por si el frontend y backend están en distintos puertos
   await app.listen(process.env.PORT ?? 3000);
 }
