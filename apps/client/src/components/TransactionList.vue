@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { computed } from 'vue';
 import { useFinanzasStore } from '../stores/finanzas';
 
 const store = useFinanzasStore();
@@ -27,7 +26,7 @@ const formatearFecha = (fechaObj: any) => {
 
 const getProyectoNombre = (id?: string) => {
   if (!id) return 'General';
-  const proy = store.proyectos.find(p => p.id === id);
+  const proy = store.proyectos.find((p: any) => p.id === id);
   return proy ? proy.nombre : 'General';
 };
 </script>

@@ -3,11 +3,37 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // Regla global: Bloquear todas las escrituras desde el cliente
-    // (Todas las escrituras deben ir a través de NestJS con Admin SDK)
-    match /{document=**} {
+    // Configuración global y proyectos/transacciones (Lectura pública, escritura por backend)
+    match /configuracion/{document=**} {
       allow read: if true;
       allow write: if false; 
+    }
+    
+    match /proyectos/{document=**} {
+      allow read: if true;
+      allow write: if false; 
+    }
+    
+    match /transacciones/{document=**} {
+      allow read: if true;
+      allow write: if false; 
+    }
+
+    // Colecciones restringidas (Solo lectura para ADMIN, escrituras vía backend)
+    match /auditoria/{document=**} {
+      allow read: if request.auth != null && request.auth.token.role == 'ADMIN';
+      allow write: if false; // Solo el backend (Admin SDK) puede escribir
+    }
+
+    match /usuarios/{document=**} {
+      allow read: if request.auth != null && request.auth.token.role == 'ADMIN';
+      allow write: if false; // Solo el backend puede crear y aprobar usuarios
+    }
+    
+    // Por si acaso, bloquear todo lo demás
+    match /{document=**} {
+      allow read: if false;
+      allow write: if false;
     }
   }
 }

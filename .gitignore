@@ -59,3 +59,9 @@ Thumbs.db
 # Project IDX (Nota: no ignoramos .idx/dev.nix porque es la definición del entorno y debe subirse al repo)
 # Solo ignoramos posibles configuraciones locales de IDX si las hubiera.
 .idx/local*
+
+# Configuración de Inteligencia Artificial (Agentes)
+# Estas carpetas SE DEBEN SUBIR al repositorio para mantener el contexto del proyecto para otras IAs.
+!.agents/
+!.claude/
+!skills-lock.json

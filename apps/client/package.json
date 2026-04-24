@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@cgpa/shared": "workspace:*",
     "axios": "^1.15.2",
     "firebase": "^12.12.1",
     "pinia": "^3.0.4",

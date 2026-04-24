@@ -3,14 +3,17 @@ import * as admin from 'firebase-admin';
 import { CreateProyectoDto } from './dto/create-proyecto.dto';
 import { UpdateProyectoDto } from './dto/update-proyecto.dto';
 import { Proyecto } from '@cgpa/shared';
+import { AuditService } from '../common/audit/audit.service';
 
 @Injectable()
 export class ProyectosService {
+  constructor(private readonly auditService: AuditService) {}
+
   private get db() {
     return admin.firestore();
   }
 
-  async create(createProyectoDto: CreateProyectoDto) {
+  async create(createProyectoDto: CreateProyectoDto, userUid: string, userName: string) {
     const proyectoRef = this.db.collection('proyectos').doc();
     
     const nuevoProyecto: Proyecto = {
@@ -21,7 +24,19 @@ export class ProyectosService {
       fecha_inicio: admin.firestore.Timestamp.now() as any,
     };
 
-    await proyectoRef.set(nuevoProyecto);
+    const batch = this.db.batch();
+    batch.set(proyectoRef, nuevoProyecto);
+
+    this.auditService.logActionWithTransactionOrBatch(batch, {
+      usuario_id: userUid,
+      nombre_usuario: userName,
+      accion: 'CREAR_PROYECTO',
+      coleccion: 'proyectos',
+      documento_id: proyectoRef.id,
+      payload_nuevo: nuevoProyecto,
+    });
+
+    await batch.commit();
     return { id: proyectoRef.id, ...nuevoProyecto };
   }
 
@@ -55,7 +70,7 @@ export class ProyectosService {
     return { id: doc.id, ...data, avance_financiero };
   }
 
-  async update(id: string, updateProyectoDto: UpdateProyectoDto) {
+  async update(id: string, updateProyectoDto: UpdateProyectoDto, userUid: string, userName: string) {
     const docRef = this.db.collection('proyectos').doc(id);
     const doc = await docRef.get();
     
@@ -77,11 +92,24 @@ export class ProyectosService {
       updates.avance_financiero = avance_financiero;
     }
 
-    await docRef.update(updates);
+    const batch = this.db.batch();
+    batch.update(docRef, updates);
+
+    this.auditService.logActionWithTransactionOrBatch(batch, {
+      usuario_id: userUid,
+      nombre_usuario: userName,
+      accion: 'ACTUALIZAR_PROYECTO',
+      coleccion: 'proyectos',
+      documento_id: id,
+      payload_anterior: data,
+      payload_nuevo: updates,
+    });
+
+    await batch.commit();
     return { id, ...updates };
   }
 
-  async remove(id: string) {
+  async remove(id: string, userUid: string, userName: string) {
     // Solo permitir si no tiene transacciones asociadas (integridad referencial)
     const transaccionesSnapshot = await this.db.collection('transacciones')
       .where('proyecto_id', '==', id)
@@ -92,7 +120,25 @@ export class ProyectosService {
       throw new BadRequestException('No se puede eliminar el proyecto porque tiene transacciones asociadas.');
     }
     
-    await this.db.collection('proyectos').doc(id).delete();
+    const docRef = this.db.collection('proyectos').doc(id);
+    const doc = await docRef.get();
+    const data = doc.exists ? doc.data() : null;
+
+    const batch = this.db.batch();
+    batch.delete(docRef);
+
+    if (data) {
+      this.auditService.logActionWithTransactionOrBatch(batch, {
+        usuario_id: userUid,
+        nombre_usuario: userName,
+        accion: 'ELIMINAR_PROYECTO',
+        coleccion: 'proyectos',
+        documento_id: id,
+        payload_anterior: data,
+      });
+    }
+
+    await batch.commit();
     return { message: 'Proyecto eliminado correctamente' };
   }
 }

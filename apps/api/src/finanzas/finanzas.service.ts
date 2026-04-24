@@ -2,9 +2,12 @@ import { Injectable, NotFoundException, ConflictException } from '@nestjs/common
 import * as admin from 'firebase-admin';
 import { Transaccion, Proyecto } from '@cgpa/shared';
 import { CreateTransactionDto } from '../transactions/dto/create-transaction.dto';
+import { AuditService } from '../common/audit/audit.service';
 
 @Injectable()
 export class FinanzasService {
+  constructor(private readonly auditService: AuditService) {}
+
   // En producción, esto idealmente se inyecta mediante un proveedor de Firebase, 
   // pero para este ejemplo lo accedemos directamente.
   private get db() {
@@ -83,6 +86,16 @@ export class FinanzasService {
             monto_ejecutado: nuevoMontoEjecutadoProyecto,
           });
         }
+
+        // Registrar auditoría en la misma transacción
+        this.auditService.logActionWithTransactionOrBatch(t, {
+          usuario_id: userUid,
+          nombre_usuario: userName,
+          accion: 'CREAR_TRANSACCION',
+          coleccion: 'transacciones',
+          documento_id: transaccionRef.id,
+          payload_nuevo: nuevaTransaccion,
+        });
 
         // --- 4. RESPUESTA ---
         return {
