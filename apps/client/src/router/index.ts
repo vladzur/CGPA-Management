@@ -1,13 +1,18 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import Dashboard from '../views/Dashboard.vue'
+import PublicView from '../views/PublicView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
     {
       path: '/',
-      name: 'dashboard',
-      component: Dashboard
+      name: 'PublicView',
+      component: PublicView
+    },
+    {
+      path: '/admin',
+      name: 'Dashboard',
+      component: () => import('../views/Dashboard.vue')
     },
     {
       path: '/proyectos',
