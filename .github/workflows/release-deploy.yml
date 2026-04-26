@@ -102,14 +102,6 @@ jobs:
           gcloud run deploy api \
             --source . \
             --region southamerica-west1 \
+            --allow-unauthenticated \
             --quiet \
             --tag "$SAFE_TAG"
-
-      - name: Allow unauthenticated access (public API)
-        # Requires roles/run.admin on the service account.
-        # Separated from deploy to get a clear error if the permission is missing.
-        run: |
-          gcloud run services add-iam-policy-binding api \
-            --region southamerica-west1 \
-            --member="allUsers" \
-            --role="roles/run.invoker"
