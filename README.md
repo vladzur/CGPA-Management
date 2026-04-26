@@ -25,6 +25,7 @@ El objetivo de este proyecto es permitir a la directiva del CGPA gestionar y pub
 │   └── shared/       # Lógica compartida, tipos de TypeScript y esquemas de validación Zod.
 ├── .idx/
 │   └── dev.nix       # Entorno preconfigurado para Project IDX.
+├── Dockerfile        # Build multi-stage para containerizar la API.
 ├── firebase.json     # Configuración para Firebase Hosting y Emuladores locales.
 └── firestore.rules   # Reglas de Seguridad (Zero Trust).
 ```
@@ -99,9 +100,139 @@ Para asignar el rol de Administrador Principal (`ADMIN`) a la primera cuenta y p
 - **Backend Centralizado:** Toda la creación, modificación y subida de archivos se realiza mediante el backend `apps/api`, donde NestJS utiliza el *Firebase Admin SDK* y valida los Custom Claims.
 - **Tipos Compartidos:** El paquete `packages/shared` actúa como la única fuente de la verdad para las interfaces (por ejemplo, esquemas de transacciones), impidiendo desajustes entre la API y el Frontend.
 
+---
+
+## 🧪 Tests
+
+El backend (`apps/api`) cuenta con una suite de tests completa ejecutada con **Jest** y **ts-jest**.
+
+### Estrategia
+
+| Tipo | Herramientas | Ubicación |
+|------|-------------|-----------|
+| Unitarios | Jest + `jest-mock-extended` | `apps/api/src/**/*.spec.ts` |
+| E2E / Integración | Jest + Supertest | `apps/api/test/**/*.e2e-spec.ts` |
+
+### Cobertura mínima exigida (gate del pipeline)
+
+| Métrica | Umbral |
+|---------|--------|
+| Líneas | ≥ 80 % |
+| Ramas | ≥ 75 % |
+| Funciones | ≥ 80 % |
+| Sentencias | ≥ 80 % |
+
+### Tests E2E disponibles
+
+- **`proyectos.e2e-spec.ts`** — CRUD completo de proyectos con validación de presupuesto.
+- **`transactions.e2e-spec.ts`** — Creación, listado y filtrado de transacciones financieras.
+- **`usuarios.e2e-spec.ts`** — Registro, aprobación y gestión de roles de usuarios.
+- **`app.e2e-spec.ts`** — Salud del servidor (`/health`).
+
+### Ejecutar los tests localmente
+
+```bash
+# Desde la raíz del monorepo
+
+# Tests unitarios (con cobertura)
+pnpm --filter @cgpa/api test:cov
+
+# Tests E2E
+pnpm --filter @cgpa/api test:e2e
+
+# Tests en modo watch (desarrollo)
+pnpm --filter @cgpa/api test:watch
+```
+
+> Los umbrales de cobertura están configurados en el campo `"jest"` del `apps/api/package.json`. Si no se alcanzan, el comando retorna código de salida ≠ 0 y bloquea el pipeline de CI.
+
+---
+
 ## 🚀 Despliegue (CI/CD)
 
-Todo el despliegue del proyecto está automatizado con flujos de trabajo de **GitHub Actions**:
+Todo el despliegue del proyecto está automatizado con tres flujos de trabajo de **GitHub Actions**.
 
-- **Backend (`apps/api`)**: Autenticado mediante *Workload Identity Federation*, compilado como una imagen de contenedor en Artifact Registry y publicado en **Google Cloud Run**.
-- **Frontend (`apps/client`)**: Compilado por Vite y desplegado globalmente en el CDN de **Firebase Hosting**. Las reglas de seguridad de Firestore también se actualizan automáticamente en este paso.
+### Diagrama de flujo
+
+```
+Pull Request abierto
+       │
+       ▼
+┌─────────────────────────────────┐
+│  PR — Verify & Preview          │
+│  1. Unit Tests & Coverage ≥80%  │
+│  2. Firebase Hosting Preview    │   ← URL de preview en el PR
+└─────────────────────────────────┘
+
+Merge a master
+       │
+       ▼
+┌─────────────────────────────────┐
+│  CI — Merge to master           │
+│  1. Build verification          │   ← sanity-check de compilación
+└─────────────────────────────────┘
+
+Push de tag vX.Y.Z
+       │
+       ▼
+┌──────────────────────────────────────────────┐
+│  Release — Deploy to Production              │
+│  1. Unit Tests & Coverage ≥80%               │
+│  2. Deploy Frontend → Firebase Hosting live  │
+│  3. Deploy Backend  → Google Cloud Run       │
+└──────────────────────────────────────────────┘
+```
+
+### `PR — Verify & Preview` (`firebase-hosting-pull-request.yml`)
+
+Se ejecuta en cada **Pull Request** hacia cualquier rama.
+
+1. **Unit Tests & Coverage** — Corre `pnpm test:cov --ci` en `apps/api`. Falla si algún umbral no se alcanza. El reporte de cobertura se sube como artefacto de GitHub Actions (retención 7 días).
+2. **Firebase Hosting Preview** — Si los tests pasan, despliega el frontend en un canal temporal de Firebase Hosting y publica la URL de preview como comentario en el PR.
+
+### `CI — Merge to master` (`firebase-hosting-merge.yml`)
+
+Se ejecuta en cada **push directo a `master`**.
+
+1. **Build verification** — Instala dependencias y compila todo el monorepo (`pnpm install && pnpm run build`). Sirve como sanity-check; el despliegue a producción lo gestiona el flujo de Release.
+
+### `Release — Deploy to Production` (`release-deploy.yml`)
+
+Se ejecuta al hacer **push de un tag semántico** (`v*.*.*`).
+
+1. **Unit Tests & Coverage** — Gate de calidad previo al deploy. El reporte de cobertura se guarda como artefacto de GitHub Actions durante 30 días.
+2. **Deploy Frontend → Firebase Hosting (live)** — Construye el cliente con Vite y lo publica en el canal `live` de Firebase Hosting.
+3. **Deploy Backend → Cloud Run** — Despliega la imagen del backend en Google Cloud Run (`southamerica-west1`) usando `gcloud run deploy --source .` autenticado con `GCP_CREDENTIALS`. El tag de Cloud Run replica el semver del release (`.` → `-`, ej: `v1.2.3` → `v1-2-3`).
+
+> Los jobs 2 y 3 del flujo de Release corren **en paralelo** una vez que el job de tests pasa (`needs: test`).
+
+### Dockerfile (build multi-stage)
+
+El backend se containeriza con un **Dockerfile multi-stage** en la raíz del monorepo para producir una imagen final mínima:
+
+| Etapa | Base | Propósito |
+|-------|------|-----------|
+| `base` | `node:24-slim` | Activa `corepack` / pnpm |
+| `build` | `base` | Instala deps, compila `shared` y `api`, crea bundle auto-contenido con `pnpm deploy --prod --legacy` |
+| `prod` | `node:24-slim` | Imagen final mínima — sólo copia `/prod/api`, expone puerto 8080 |
+
+```bash
+# Build local de la imagen (desde la raíz del monorepo)
+docker build -t cgpa-api .
+
+# Ejecutar localmente
+docker run -p 8080:8080 -e NODE_ENV=production cgpa-api
+```
+
+### Secretos requeridos en GitHub
+
+| Secreto | Usado en |
+|---------|----------|
+| `VITE_FIREBASE_API_KEY` | PR Preview, CI Merge, Release |
+| `VITE_FIREBASE_AUTH_DOMAIN` | PR Preview, CI Merge, Release |
+| `VITE_FIREBASE_PROJECT_ID` | PR Preview, CI Merge, Release |
+| `VITE_FIREBASE_STORAGE_BUCKET` | PR Preview, CI Merge, Release |
+| `VITE_FIREBASE_MESSAGING_SENDER_ID` | PR Preview, CI Merge, Release |
+| `VITE_FIREBASE_APP_ID` | PR Preview, CI Merge, Release |
+| `FIREBASE_SERVICE_ACCOUNT_CGPA_LICEO_AGB` | PR Preview, Release (Hosting) |
+| `GCP_CREDENTIALS` | Release (Cloud Run) |
