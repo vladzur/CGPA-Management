@@ -93,9 +93,12 @@ jobs:
 
       - name: Deploy to Cloud Run
         run: |
+          # Cloud Run traffic tags only allow lowercase letters, numbers and hyphens.
+          # Semver dots (v1.0.0) must be converted → v1-0-0
+          SAFE_TAG=$(echo "${{ github.ref_name }}" | tr '.' '-' | tr '[:upper:]' '[:lower:]')
           gcloud run deploy api \
             --source . \
             --region southamerica-west1 \
             --allow-unauthenticated \
             --quiet \
-            --tag ${{ github.ref_name }}
+            --tag "$SAFE_TAG"
