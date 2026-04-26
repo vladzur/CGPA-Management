@@ -1,17 +1,17 @@
-name: PR — Verify & Preview
+name: Release — Deploy to Production
 
-on: pull_request
+on:
+  push:
+    tags:
+      - 'v*.*.*'   # triggers on semantic version tags, e.g. v1.2.3
 
 permissions:
-  checks: write
   contents: read
-  pull-requests: write
 
 jobs:
-  # ── 1. Tests & Coverage ────────────────────────────────────────────────────
+  # ── 1. Tests & Coverage gate ───────────────────────────────────────────────
   test:
     name: Unit Tests & Coverage (≥80%)
-    if: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -34,22 +34,19 @@ jobs:
 
       - name: Run tests with coverage
         run: pnpm test:cov --ci
-        # Jest will fail the step if any threshold defined in package.json is not met
-        # (lines ≥ 80, branches ≥ 75, functions ≥ 80, statements ≥ 80)
 
       - name: Upload coverage report
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: coverage-report
+          name: coverage-report-${{ github.ref_name }}
           path: apps/api/coverage/
-          retention-days: 7
+          retention-days: 30
 
-  # ── 2. Preview Deploy (only after tests pass) ──────────────────────────────
-  preview:
-    name: Firebase Hosting Preview
+  # ── 2. Deploy Frontend to Firebase Hosting (live channel) ─────────────────
+  deploy_frontend:
+    name: Deploy Frontend → Firebase Hosting (live)
     needs: test
-    if: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
     runs-on: ubuntu-latest
 
     steps:
@@ -77,5 +74,28 @@ jobs:
         with:
           repoToken: ${{ secrets.GITHUB_TOKEN }}
           firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_CGPA_LICEO_AGB }}
+          channelId: live
           projectId: cgpa-liceo-agb
-          # No channelId → auto-generates a preview channel for the PR
+
+  # ── 3. Deploy Backend to Cloud Run ────────────────────────────────────────
+  deploy_backend:
+    name: Deploy Backend → Cloud Run
+    needs: test
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_CREDENTIALS }}
+
+      - name: Deploy to Cloud Run
+        run: |
+          gcloud run deploy api \
+            --source . \
+            --region southamerica-west1 \
+            --allow-unauthenticated \
+            --quiet \
+            --tag ${{ github.ref_name }}
