@@ -46,13 +46,15 @@ COPY --from=build /app/packages/shared/dist ./packages/shared/dist
 COPY --from=build /app/apps/api/package.json ./apps/api/
 COPY --from=build /app/apps/api/dist ./apps/api/dist
 
-# Variables de entorno por defecto
+# Variables de entorno
 ENV NODE_ENV=production
-# Cloud Run inyecta la variable PORT automáticamente, la capturamos
-ENV PORT=3000
+# IMPORTANTE: NO fijar PORT aquí.
+# Cloud Run inyecta PORT=8080 en tiempo de ejecución;
+# sobreescribirla en el Dockerfile impide que el contenedor
+# levante en el puerto correcto y falla el health check.
 
-# Exponer el puerto
-EXPOSE $PORT
+# Documentar el puerto que Cloud Run usa por defecto
+EXPOSE 8080
 
 # Comando de inicio
 CMD ["node", "apps/api/dist/main.js"]
