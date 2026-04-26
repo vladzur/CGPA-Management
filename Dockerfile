@@ -1,60 +1,46 @@
-# Etapa 1: Base con PNPM
+# ── Etapa 1: Base con PNPM ────────────────────────────────────────────────
 FROM node:24-slim AS base
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
-ENV CI=true
 RUN corepack enable
 
-# Etapa 2: Construcción
+# ── Etapa 2: Build ────────────────────────────────────────────────────────
 FROM base AS build
 WORKDIR /app
 
-# Copiar archivos de configuración del workspace
+# Copiar manifiestos del workspace
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY packages/shared/package.json ./packages/shared/
+COPY apps/api/package.json         ./apps/api/
 
-# Copiar el paquete compartido y la API
-COPY packages/shared ./packages/shared
-COPY apps/api ./apps/api
-
-# Instalar dependencias (frozen-lockfile garantiza reproducibilidad)
+# Instalar TODAS las dependencias (incluyendo devDeps para compilar)
 RUN pnpm install --frozen-lockfile
 
-# Compilar los paquetes
+# Copiar fuentes
+COPY packages/shared ./packages/shared
+COPY apps/api        ./apps/api
+
+# Compilar shared y luego la API
 RUN pnpm --filter @cgpa/shared build
-RUN pnpm --filter @cgpa/api build
+RUN pnpm --filter @cgpa/api    build
 
-# Eliminar devDependencies para reducir tamaño
-RUN pnpm install --prod --frozen-lockfile
+# Usar `pnpm deploy` para crear un directorio de despliegue auto-contenido
+# que resuelve los symlinks de workspace correctamente
+RUN pnpm --filter @cgpa/api deploy --prod --legacy /prod/api
 
-# Etapa 3: Producción
-FROM base AS prod
+# Copiar el dist compilado al directorio de deploy
+# NestJS compila a dist/src/main.js (tsconfig rootDir=src)
+RUN cp -r /app/apps/api/dist/. /prod/api/dist/
+
+# ── Etapa 3: Producción ───────────────────────────────────────────────────
+FROM node:24-slim AS prod
 WORKDIR /app
 
-# Copiar configuración raíz
-COPY package.json pnpm-workspace.yaml ./
+# Copiar el bundle auto-contenido generado por pnpm deploy
+COPY --from=build /prod/api ./
 
-# Copiar node_modules productivos de la etapa de build
-COPY --from=build /app/node_modules ./node_modules
-COPY --from=build /app/packages/shared/node_modules ./packages/shared/node_modules
-COPY --from=build /app/apps/api/node_modules ./apps/api/node_modules
-
-# Copiar el paquete compartido
-COPY --from=build /app/packages/shared/package.json ./packages/shared/
-COPY --from=build /app/packages/shared/dist ./packages/shared/dist
-
-# Copiar la aplicación compilada
-COPY --from=build /app/apps/api/package.json ./apps/api/
-COPY --from=build /app/apps/api/dist ./apps/api/dist
-
-# Variables de entorno
 ENV NODE_ENV=production
-# IMPORTANTE: NO fijar PORT aquí.
-# Cloud Run inyecta PORT=8080 en tiempo de ejecución;
-# sobreescribirla en el Dockerfile impide que el contenedor
-# levante en el puerto correcto y falla el health check.
-
-# Documentar el puerto que Cloud Run usa por defecto
+# Cloud Run inyecta PORT=8080 en runtime — NO fijar aquí
 EXPOSE 8080
 
-# Comando de inicio
-CMD ["node", "apps/api/dist/main.js"]
+CMD ["node", "dist/src/main.js"]
