@@ -5,7 +5,6 @@
  * controllers HTTP sin conectarse a Firebase real.
  */
 import { Module } from '@nestjs/common';
-import { APP_GUARD } from '@nestjs/core';
 import { AppController } from '../src/app.controller';
 import { AppService } from '../src/app.service';
 import { TransactionsController } from '../src/transactions/transactions.controller';
@@ -14,21 +13,21 @@ import { UsuariosController } from '../src/usuarios/usuarios.controller';
 import { FinanzasService } from '../src/finanzas/finanzas.service';
 import { ProyectosService } from '../src/proyectos/proyectos.service';
 import { UsuariosService } from '../src/usuarios/usuarios.service';
+import { ComunicadosController } from '../src/comunicados/comunicados.controller';
+import { ComunicadosService } from '../src/comunicados/comunicados.service';
 import { StorageService } from '../src/storage/storage.service';
 import { AuditService } from '../src/common/audit/audit.service';
-import { FirebaseAuthGuard } from '../src/common/guards/firebase-auth.guard';
 
 @Module({
-  controllers: [AppController, TransactionsController, ProyectosController, UsuariosController],
+  controllers: [AppController, TransactionsController, ProyectosController, UsuariosController, ComunicadosController],
   providers: [
     AppService,
     FinanzasService,
     ProyectosService,
     UsuariosService,
+    ComunicadosService,
     StorageService,
     AuditService,
-    // El guard se registra globalmente en el módulo de test
-    { provide: APP_GUARD, useClass: FirebaseAuthGuard },
   ],
 })
 export class TestAppModule {}
