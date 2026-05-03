@@ -43,6 +43,17 @@ const router = createRouter({
       name: 'ProjectDetail',
       component: () => import('../views/ProjectDetail.vue'),
       meta: { requiresAuth: true }
+    },
+    {
+      path: '/comunicados',
+      name: 'ComunicadosPublic',
+      component: () => import('../views/ComunicadosPublic.vue')
+    },
+    {
+      path: '/admin/comunicados',
+      name: 'ComunicadosAdmin',
+      component: () => import('../views/admin/ComunicadosAdmin.vue'),
+      meta: { requiresAuth: true, requiresAdmin: true }
     }
   ]
 })

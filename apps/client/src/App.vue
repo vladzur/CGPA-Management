@@ -3,7 +3,7 @@ import { RouterView, useRoute } from 'vue-router'
 import { computed } from 'vue'
 
 const route = useRoute()
-const isPublicView = computed(() => route.name === 'PublicView')
+const isPublicView = computed(() => !route.path.startsWith('/admin'))
 </script>
 
 <template>
@@ -17,6 +17,7 @@ const isPublicView = computed(() => route.name === 'PublicView')
         <ul class="menu menu-horizontal px-1">
           <li><router-link to="/admin">Dashboard</router-link></li>
           <li><router-link to="/proyectos">Proyectos</router-link></li>
+          <li><router-link to="/admin/comunicados">Comunicados</router-link></li>
         </ul>
       </div>
       <div class="flex-none md:hidden" v-if="!isPublicView">
@@ -27,8 +28,15 @@ const isPublicView = computed(() => route.name === 'PublicView')
           <ul tabindex="0" class="menu menu-sm dropdown-content mt-3 z-[1] p-2 shadow bg-base-100 rounded-box w-52">
             <li><router-link to="/admin">Dashboard</router-link></li>
             <li><router-link to="/proyectos">Proyectos</router-link></li>
+            <li><router-link to="/admin/comunicados">Comunicados</router-link></li>
           </ul>
         </div>
+      </div>
+      <div class="flex-none" v-if="isPublicView">
+        <ul class="menu menu-horizontal px-1">
+          <li><router-link to="/">Transparencia</router-link></li>
+          <li><router-link to="/comunicados">Comunicados</router-link></li>
+        </ul>
       </div>
     </div>
 
