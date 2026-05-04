@@ -11,7 +11,7 @@ async function bootstrap() {
 
     if (!admin.apps.length) {
       admin.initializeApp({
-        projectId: 'demo-cgpa-platform',
+        projectId: 'cgpa-liceo-agb',
       });
     }
   } else {

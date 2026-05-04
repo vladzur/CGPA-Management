@@ -5,7 +5,7 @@ const { getAuth } = require('firebase-admin/auth');
 process.env.FIRESTORE_EMULATOR_HOST = '127.0.0.1:8080';
 process.env.FIREBASE_AUTH_EMULATOR_HOST = '127.0.0.1:9099';
 
-const PROJECT_ID = 'demo-cgpa-platform';
+const PROJECT_ID = 'cgpa-liceo-agb';
 const app = initializeApp({ projectId: PROJECT_ID });
 const db = getFirestore(app);
 const auth = getAuth(app);
