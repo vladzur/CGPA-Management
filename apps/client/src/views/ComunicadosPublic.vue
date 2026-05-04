@@ -33,7 +33,8 @@ const fetchComunicados = async () => {
     const res = await axios.get(`${baseURL}/api/comunicados/publicos`);
     comunicados.value = res.data;
   } catch (err: any) {
-    error.value = 'Error al cargar comunicados';
+    console.error('Error al cargar comunicados:', err);
+    error.value = err?.response?.data?.message || err?.message || 'Error al cargar comunicados';
   } finally {
     loading.value = false;
   }
