@@ -5,7 +5,8 @@ const { getAuth } = require('firebase-admin/auth');
 process.env.FIRESTORE_EMULATOR_HOST = '127.0.0.1:8080';
 process.env.FIREBASE_AUTH_EMULATOR_HOST = '127.0.0.1:9099';
 
-const app = initializeApp({ projectId: 'demo-cgpa-platform' });
+const PROJECT_ID = 'demo-cgpa-platform';
+const app = initializeApp({ projectId: PROJECT_ID });
 const db = getFirestore(app);
 const auth = getAuth(app);
 
@@ -14,33 +15,54 @@ const ADMIN_PASSWORD = 'admin123';
 const ADMIN_NAME = 'Administrador CGPA';
 
 async function seed() {
-  console.log('Seeding local emulators...\n');
+  console.log('Seeding local emulators...');
+  console.log(`  Project ID: ${PROJECT_ID}`);
+  console.log(`  Auth:       ${process.env.FIREBASE_AUTH_EMULATOR_HOST}`);
+  console.log(`  Firestore:  ${process.env.FIRESTORE_EMULATOR_HOST}\n`);
 
   // ── 1. Crear usuario admin en Auth Emulator ─────────────────────────────
-  console.log('[1/4] Creando usuario admin en Auth Emulator...');
+  console.log('[1/5] Creando usuario admin en Auth Emulator...');
   let userRecord;
+
+  // Eliminar si existe para evitar estado inconsistente
   try {
-    userRecord = await auth.getUserByEmail(ADMIN_EMAIL);
-    console.log(`  Usuario ya existe: ${userRecord.uid}`);
+    const existing = await auth.getUserByEmail(ADMIN_EMAIL);
+    console.log(`  Usuario existente encontrado (${existing.uid}), recreando...`);
+    await auth.deleteUser(existing.uid);
   } catch {
-    userRecord = await auth.createUser({
-      email: ADMIN_EMAIL,
-      password: ADMIN_PASSWORD,
-      displayName: ADMIN_NAME,
-    });
-    console.log(`  Usuario creado: ${userRecord.uid}`);
+    // No existe, ok
   }
 
+  userRecord = await auth.createUser({
+    email: ADMIN_EMAIL,
+    password: ADMIN_PASSWORD,
+    displayName: ADMIN_NAME,
+  });
+  console.log(`  Usuario creado: ${userRecord.uid}`);
+
+  // Verificar que se creo
+  const fetched = await auth.getUser(userRecord.uid);
+  if (fetched.email !== ADMIN_EMAIL) {
+    throw new Error('Fallo la verificacion: el usuario no se creo correctamente');
+  }
+  console.log('  Verificado: el usuario existe en el Auth Emulator');
+
   // ── 2. Setear custom claims ─────────────────────────────────────────────
-  console.log('[2/4] Configurando rol ADMIN...');
+  console.log('[2/5] Configurando rol ADMIN...');
   await auth.setCustomUserClaims(userRecord.uid, {
     role: 'ADMIN',
     activo: true,
   });
-  console.log('  Custom claims asignados: { role: ADMIN, activo: true }');
+
+  // Verificar claims
+  const userWithClaims = await auth.getUser(userRecord.uid);
+  if (userWithClaims.customClaims?.role !== 'ADMIN') {
+    throw new Error('Fallo la verificacion: los custom claims no se asignaron');
+  }
+  console.log('  Custom claims verificados: { role: ADMIN, activo: true }');
 
   // ── 3. Crear documento en Firestore ─────────────────────────────────────
-  console.log('[3/4] Creando documento en usuarios...');
+  console.log('[3/5] Creando documento en usuarios...');
   await db.collection('usuarios').doc(userRecord.uid).set({
     uid: userRecord.uid,
     email: ADMIN_EMAIL,
@@ -51,10 +73,16 @@ async function seed() {
     fecha_aprobacion: Timestamp.now(),
     aprobado_por: userRecord.uid,
   });
-  console.log('  Documento creado en usuarios/{uid}');
+
+  // Verificar doc en Firestore
+  const userDoc = await db.collection('usuarios').doc(userRecord.uid).get();
+  if (!userDoc.exists) {
+    throw new Error('Fallo la verificacion: el documento de usuario no se creo');
+  }
+  console.log('  Documento verificado en Firestore');
 
   // ── 4. Seed de datos base ───────────────────────────────────────────────
-  console.log('[4/4] Insertando datos de prueba...');
+  console.log('[4/5] Insertando datos de prueba...');
 
   await db.collection('configuracion').doc('liceo_agb').set({
     nombre: 'Centro General de Padres AGB',
@@ -74,6 +102,8 @@ async function seed() {
     responsable: { uid: userRecord.uid, nombre: ADMIN_NAME },
   });
 
+  // ── 5. Comunicado de prueba ─────────────────────────────────────────────
+  console.log('[5/5] Creando comunicado de prueba...');
   await db.collection('comunicados').add({
     titulo: 'Bienvenidos al nuevo sistema de comunicados',
     contenido: `# Bienvenidos
@@ -99,7 +129,7 @@ Para consultas, contactar a la directiva via los canales oficiales.
     creado_por: { uid: userRecord.uid, nombre: ADMIN_NAME },
   });
 
-  console.log('\nSeed completado exitosamente!');
+  console.log('\nTodos los pasos completados y verificados.');
   console.log('──────────────────────────────────────────────');
   console.log(`  Email:    ${ADMIN_EMAIL}`);
   console.log(`  Password: ${ADMIN_PASSWORD}`);
@@ -109,6 +139,8 @@ Para consultas, contactar a la directiva via los canales oficiales.
 }
 
 seed().catch((err) => {
-  console.error('Error en el seed:', err);
+  console.error('\nERROR en el seed:', err.message);
+  console.error('Asegurate de que los emuladores esten corriendo:');
+  console.error('  firebase emulators:start');
   process.exit(1);
 });
