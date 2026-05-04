@@ -2,6 +2,7 @@
 import { ref, onMounted } from 'vue';
 import apiClient from '../../plugins/axios';
 import MarkdownRenderer from '../../components/MarkdownRenderer.vue';
+import { processImage, formatSize } from '../../utils/imageProcessor';
 
 interface Comunicado {
   id: string;
@@ -27,6 +28,12 @@ const isSubmitting = ref(false);
 const isUploading = ref(false);
 const errorMsg = ref('');
 
+// Image upload state
+const imageFile = ref<File | null>(null);
+const imagePreview = ref('');
+const imageAlt = ref('');
+const imageStats = ref('');
+
 const newForm = ref({
   titulo: '',
   contenido: '',
@@ -40,8 +47,6 @@ const editForm = ref({
   estado: 'BORRADOR' as 'BORRADOR' | 'PUBLICADO',
   fecha_publicacion: '',
 });
-
-const fileInput = ref<HTMLInputElement | null>(null);
 
 const fetchComunicados = async () => {
   loading.value = true;
@@ -58,25 +63,41 @@ const fetchComunicados = async () => {
   }
 };
 
+const toDate = (value: any): Date | null => {
+  if (!value) return null;
+  if (value.toDate) return value.toDate();
+  if (value._seconds) return new Date(value._seconds * 1000);
+  const d = new Date(value);
+  return Number.isNaN(d.getTime()) ? null : d;
+};
+
 const formatearFecha = (timestamp: any): string => {
-  if (!timestamp) return '';
-  const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+  const date = toDate(timestamp);
+  if (!date) return '';
   return new Intl.DateTimeFormat('es-CL', {
     day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit',
   }).format(date);
 };
 
 const toDatetimeLocal = (timestamp: any): string => {
-  if (!timestamp) return '';
-  const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+  const date = toDate(timestamp);
+  if (!date) return '';
   return new Date(date.getTime() - date.getTimezoneOffset() * 60000)
     .toISOString()
     .slice(0, 16);
 };
 
+const limpiarEstadoImagen = () => {
+  imageFile.value = null;
+  imagePreview.value = '';
+  imageAlt.value = '';
+  imageStats.value = '';
+};
+
 const openCreateModal = () => {
   errorMsg.value = '';
   showPreview.value = false;
+  limpiarEstadoImagen();
   newForm.value = {
     titulo: '',
     contenido: '',
@@ -115,6 +136,7 @@ const submitCreate = async () => {
 const openEditModal = (comunicado: Comunicado) => {
   errorMsg.value = '';
   showPreview.value = false;
+  limpiarEstadoImagen();
   editingComunicado.value = comunicado;
   editForm.value = {
     titulo: comunicado.titulo,
@@ -162,19 +184,46 @@ const deleteComunicado = async (comunicado: Comunicado) => {
   }
 };
 
-const subirImagen = async () => {
-  const file = fileInput.value?.files?.[0];
+const handleImageFile = async (file: File) => {
+  if (!file.type.startsWith('image/')) return;
+
+  imageFile.value = file;
+  imageAlt.value = file.name.replace(/\.[^.]+$/, '');
+  imageStats.value = 'Procesando...';
+
+  // Preview inmediato
+  const reader = new FileReader();
+  reader.onload = () => {
+    imagePreview.value = reader.result as string;
+  };
+  reader.readAsDataURL(file);
+
+  try {
+    const processed = await processImage(file);
+    imageFile.value = new File([processed.blob], processed.name, { type: processed.blob.type });
+    imageStats.value = `${processed.width}×${processed.height} | ${formatSize(processed.originalSize)} → ${formatSize(processed.compressedSize)}`;
+  } catch {
+    imageStats.value = formatSize(file.size);
+  }
+};
+
+const cancelarImagen = () => {
+  limpiarEstadoImagen();
+};
+
+const insertarImagen = async () => {
+  const file = imageFile.value;
   if (!file) return;
 
   isUploading.value = true;
   try {
     const formData = new FormData();
-    formData.append('file', file);
+    formData.append('file', file, file.name);
     const res = await apiClient.post('/comunicados/imagenes', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
     const url = res.data.url;
-    const mdImage = `![${file.name}](${url})`;
+    const mdImage = `![${imageAlt.value || file.name}](${url})`;
 
     if (showCreateModal.value) {
       newForm.value.contenido += `\n${mdImage}\n`;
@@ -182,12 +231,44 @@ const subirImagen = async () => {
       editForm.value.contenido += `\n${mdImage}\n`;
     }
 
-    if (fileInput.value) fileInput.value.value = '';
+    limpiarEstadoImagen();
   } catch (err: any) {
     alert(err.response?.data?.message || 'Error al subir imagen');
   } finally {
     isUploading.value = false;
   }
+};
+
+const onDropZoneClick = (e: MouseEvent) => {
+  const input = (e.currentTarget as HTMLElement).querySelector<HTMLInputElement>('input[type="file"]');
+  input?.click();
+};
+
+const onDragOver = (e: DragEvent) => {
+  e.preventDefault();
+  if (e.currentTarget instanceof HTMLElement) {
+    e.currentTarget.classList.add('border-liceo-primary');
+  }
+};
+
+const onDragLeave = (e: DragEvent) => {
+  if (e.currentTarget instanceof HTMLElement) {
+    e.currentTarget.classList.remove('border-liceo-primary');
+  }
+};
+
+const onDrop = (e: DragEvent) => {
+  e.preventDefault();
+  if (e.currentTarget instanceof HTMLElement) {
+    e.currentTarget.classList.remove('border-liceo-primary');
+  }
+  const file = e.dataTransfer?.files?.[0];
+  if (file) handleImageFile(file);
+};
+
+const onFileInputChange = (e: Event) => {
+  const file = (e.target as HTMLInputElement).files?.[0];
+  if (file) handleImageFile(file);
 };
 
 const estadoBadgeClass = (estado: string) => {
@@ -196,10 +277,8 @@ const estadoBadgeClass = (estado: string) => {
 
 const fechaEstadoComunicado = (comunicado: Comunicado): string => {
   if (comunicado.estado === 'BORRADOR') return 'Borrador';
-  const fecha = comunicado.fecha_publicacion?.toDate
-    ? comunicado.fecha_publicacion.toDate()
-    : new Date(comunicado.fecha_publicacion);
-  if (fecha <= new Date()) return 'Publicado';
+  const fecha = toDate(comunicado.fecha_publicacion);
+  if (fecha && fecha <= new Date()) return 'Publicado';
   return `Programado: ${formatearFecha(comunicado.fecha_publicacion)}`;
 };
 
@@ -320,12 +399,48 @@ onMounted(() => {
 
           <div class="form-control mb-3">
             <label class="label"><span class="label-text">Imagen</span></label>
-            <div class="flex gap-2 items-center">
-              <input ref="fileInput" type="file" accept="image/*" class="file-input file-input-bordered file-input-sm w-full max-w-xs" />
-              <button type="button" class="btn btn-sm btn-outline" :disabled="isUploading" @click="subirImagen">
-                <span v-if="isUploading" class="loading loading-spinner loading-xs"></span>
-                Subir
-              </button>
+
+            <!-- Sin imagen seleccionada: drop zone -->
+            <div
+              v-if="!imageFile"
+              class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-liceo-primary transition-colors cursor-pointer"
+              @click="onDropZoneClick"
+              @dragover="onDragOver"
+              @dragleave="onDragLeave"
+              @drop="onDrop"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 mx-auto text-gray-400 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+              <p class="text-sm text-gray-500">Arrastra una imagen aqui o <span class="text-liceo-primary">haz clic para seleccionar</span></p>
+              <p class="text-xs text-gray-400 mt-1">Se redimensionara y comprimira automaticamente</p>
+              <input type="file" accept="image/*" class="hidden" @change="onFileInputChange" />
+            </div>
+
+            <!-- Imagen seleccionada: preview + datos -->
+            <div v-else class="border rounded-lg p-4 bg-base-100 space-y-3">
+              <div class="flex gap-4">
+                <div class="w-32 h-32 flex-shrink-0 rounded-lg overflow-hidden bg-gray-100">
+                  <img :src="imagePreview" class="w-full h-full object-cover" alt="Preview" />
+                </div>
+                <div class="flex-1 space-y-2">
+                  <div class="text-sm text-gray-600">{{ imageFile.name }}</div>
+                  <div class="text-xs text-gray-500">{{ imageStats }}</div>
+                  <input
+                    v-model="imageAlt"
+                    type="text"
+                    class="input input-bordered input-sm w-full"
+                    placeholder="Texto alternativo (alt)"
+                  />
+                </div>
+              </div>
+              <div class="flex gap-2 justify-end">
+                <button type="button" class="btn btn-sm btn-ghost" @click="cancelarImagen">Cancelar</button>
+                <button type="button" class="btn btn-sm btn-primary" :disabled="isUploading" @click="insertarImagen">
+                  <span v-if="isUploading" class="loading loading-spinner loading-xs"></span>
+                  Insertar en contenido
+                </button>
+              </div>
             </div>
           </div>
 
@@ -393,12 +508,48 @@ onMounted(() => {
 
           <div class="form-control mb-3">
             <label class="label"><span class="label-text">Imagen</span></label>
-            <div class="flex gap-2 items-center">
-              <input ref="fileInput" type="file" accept="image/*" class="file-input file-input-bordered file-input-sm w-full max-w-xs" />
-              <button type="button" class="btn btn-sm btn-outline" :disabled="isUploading" @click="subirImagen">
-                <span v-if="isUploading" class="loading loading-spinner loading-xs"></span>
-                Subir
-              </button>
+
+            <!-- Sin imagen seleccionada: drop zone -->
+            <div
+              v-if="!imageFile"
+              class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-liceo-primary transition-colors cursor-pointer"
+              @click="onDropZoneClick"
+              @dragover="onDragOver"
+              @dragleave="onDragLeave"
+              @drop="onDrop"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 mx-auto text-gray-400 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+              <p class="text-sm text-gray-500">Arrastra una imagen aqui o <span class="text-liceo-primary">haz clic para seleccionar</span></p>
+              <p class="text-xs text-gray-400 mt-1">Se redimensionara y comprimira automaticamente</p>
+              <input type="file" accept="image/*" class="hidden" @change="onFileInputChange" />
+            </div>
+
+            <!-- Imagen seleccionada: preview + datos -->
+            <div v-else class="border rounded-lg p-4 bg-base-100 space-y-3">
+              <div class="flex gap-4">
+                <div class="w-32 h-32 flex-shrink-0 rounded-lg overflow-hidden bg-gray-100">
+                  <img :src="imagePreview" class="w-full h-full object-cover" alt="Preview" />
+                </div>
+                <div class="flex-1 space-y-2">
+                  <div class="text-sm text-gray-600">{{ imageFile.name }}</div>
+                  <div class="text-xs text-gray-500">{{ imageStats }}</div>
+                  <input
+                    v-model="imageAlt"
+                    type="text"
+                    class="input input-bordered input-sm w-full"
+                    placeholder="Texto alternativo (alt)"
+                  />
+                </div>
+              </div>
+              <div class="flex gap-2 justify-end">
+                <button type="button" class="btn btn-sm btn-ghost" @click="cancelarImagen">Cancelar</button>
+                <button type="button" class="btn btn-sm btn-primary" :disabled="isUploading" @click="insertarImagen">
+                  <span v-if="isUploading" class="loading loading-spinner loading-xs"></span>
+                  Insertar en contenido
+                </button>
+              </div>
             </div>
           </div>
 
