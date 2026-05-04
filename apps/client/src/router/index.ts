@@ -27,10 +27,14 @@ const router = createRouter({
       meta: { requiresAuth: true }
     },
     {
-      path: '/admin/pendientes',
-      name: 'PendingUsers',
-      component: () => import('../views/PendingUsers.vue'),
+      path: '/admin/usuarios',
+      name: 'AdminUsers',
+      component: () => import('../views/admin/AdminUsers.vue'),
       meta: { requiresAuth: true, requiresAdmin: true }
+    },
+    {
+      path: '/admin/pendientes',
+      redirect: '/admin/usuarios',
     },
     {
       path: '/proyectos',
