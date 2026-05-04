@@ -15,7 +15,6 @@ interface Comunicado {
 
 const comunicados = ref<Comunicado[]>([]);
 const loading = ref(true);
-const error = ref('');
 
 const formatearFecha = (timestamp: any): string => {
   if (!timestamp) return '';
@@ -27,14 +26,13 @@ const formatearFecha = (timestamp: any): string => {
 
 const fetchComunicados = async () => {
   loading.value = true;
-  error.value = '';
   try {
     const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
     const res = await axios.get(`${baseURL}/api/comunicados/publicos`);
     comunicados.value = res.data;
   } catch (err: any) {
     console.error('Error al cargar comunicados:', err);
-    error.value = err?.response?.data?.message || err?.message || 'Error al cargar comunicados';
+    comunicados.value = [];
   } finally {
     loading.value = false;
   }
@@ -62,11 +60,6 @@ onMounted(() => {
     <!-- Loading -->
     <div v-if="loading" class="flex justify-center my-12">
       <span class="loading loading-spinner loading-lg text-primary"></span>
-    </div>
-
-    <!-- Error -->
-    <div v-else-if="error" class="alert alert-error">
-      <span>{{ error }}</span>
     </div>
 
     <!-- Sin comunicados -->
