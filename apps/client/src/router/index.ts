@@ -43,13 +43,24 @@ const router = createRouter({
       name: 'ProjectDetail',
       component: () => import('../views/ProjectDetail.vue'),
       meta: { requiresAuth: true }
+    },
+    {
+      path: '/comunicados',
+      name: 'ComunicadosPublic',
+      component: () => import('../views/ComunicadosPublic.vue')
+    },
+    {
+      path: '/admin/comunicados',
+      name: 'ComunicadosAdmin',
+      component: () => import('../views/admin/ComunicadosAdmin.vue'),
+      meta: { requiresAuth: true, requiresAdmin: true }
     }
   ]
 })
 
-router.beforeEach(async (to, _from, next) => {
+router.beforeEach(async (to, _from) => {
   const authStore = useAuthStore()
-  
+
   // Esperar a que Firebase se inicialice antes de evaluar rutas
   if (!authStore.isInitialized) {
     await new Promise<void>((resolve) => {
@@ -64,23 +75,21 @@ router.beforeEach(async (to, _from, next) => {
 
   if (to.meta.requiresAuth) {
     if (!authStore.user) {
-      return next('/login')
+      return '/login'
     }
-    
+
     // Verificamos claim 'activo' para dejar pasar al admin general
     if (!authStore.claims?.activo) {
       alert('Tu cuenta está pendiente de aprobación por un Superadmin.');
       authStore.logout();
-      return next('/')
+      return '/'
     }
 
     if (to.meta.requiresAdmin && authStore.claims?.role !== 'ADMIN') {
       alert('Acceso denegado. Se requiere rol de Administrador.');
-      return next('/admin')
+      return '/admin'
     }
   }
-
-  next()
 })
 
 export default router

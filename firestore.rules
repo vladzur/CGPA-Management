@@ -19,6 +19,12 @@ service cloud.firestore {
       allow write: if false; 
     }
 
+    // Comunicados (Lectura pública, escritura por backend)
+    match /comunicados/{document=**} {
+      allow read: if true;
+      allow write: if false;
+    }
+
     // Colecciones restringidas (Solo lectura para ADMIN, escrituras vía backend)
     match /auditoria/{document=**} {
       allow read: if request.auth != null && request.auth.token.role == 'ADMIN';

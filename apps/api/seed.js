@@ -3,7 +3,7 @@ const { getFirestore, Timestamp } = require('firebase-admin/firestore');
 
 process.env.FIRESTORE_EMULATOR_HOST = '127.0.0.1:8080';
 
-const app = initializeApp({ projectId: 'demo-cgpa-platform' });
+const app = initializeApp({ projectId: 'cgpa-liceo-agb' });
 const db = getFirestore(app);
 
 async function seed() {
