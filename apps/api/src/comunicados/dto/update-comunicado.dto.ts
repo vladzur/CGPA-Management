@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { EstadoComunicadoSchema, EstadoComunicado } from '@cgpa/shared';
+import { EstadoComunicadoSchema, EstadoComunicado, TimestampSchema } from '@cgpa/shared';
 
 export class UpdateComunicadoDto {
   titulo?: string;
@@ -12,5 +12,5 @@ export const UpdateComunicadoSchema = z.object({
   titulo: z.string().min(1).optional(),
   contenido: z.string().min(1).optional(),
   estado: EstadoComunicadoSchema.optional(),
-  fecha_publicacion: z.date().optional(),
+  fecha_publicacion: TimestampSchema.optional(),
 });

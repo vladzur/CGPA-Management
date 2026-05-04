@@ -16,9 +16,17 @@ interface Comunicado {
 const comunicados = ref<Comunicado[]>([]);
 const loading = ref(true);
 
+const toDate = (value: any): Date | null => {
+  if (!value) return null;
+  if (value.toDate) return value.toDate();
+  if (value._seconds) return new Date(value._seconds * 1000);
+  const d = new Date(value);
+  return Number.isNaN(d.getTime()) ? null : d;
+};
+
 const formatearFecha = (timestamp: any): string => {
-  if (!timestamp) return '';
-  const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+  const date = toDate(timestamp);
+  if (!date) return '';
   return new Intl.DateTimeFormat('es-CL', {
     day: '2-digit', month: 'long', year: 'numeric',
   }).format(date);
