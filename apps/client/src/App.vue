@@ -1,9 +1,12 @@
 <script setup lang="ts">
 import { RouterView, useRoute } from 'vue-router'
 import { computed } from 'vue'
+import { useAuthStore } from './stores/auth'
 
 const route = useRoute()
+const authStore = useAuthStore()
 const isPublicView = computed(() => !route.path.startsWith('/admin'))
+const isAdmin = computed(() => authStore.claims?.role === 'ADMIN')
 </script>
 
 <template>
@@ -18,6 +21,7 @@ const isPublicView = computed(() => !route.path.startsWith('/admin'))
           <li><router-link to="/admin">Dashboard</router-link></li>
           <li><router-link to="/proyectos">Proyectos</router-link></li>
           <li><router-link to="/admin/comunicados">Comunicados</router-link></li>
+          <li v-if="isAdmin"><router-link to="/admin/usuarios">Usuarios</router-link></li>
         </ul>
       </div>
       <div class="flex-none md:hidden" v-if="!isPublicView">
@@ -29,6 +33,7 @@ const isPublicView = computed(() => !route.path.startsWith('/admin'))
             <li><router-link to="/admin">Dashboard</router-link></li>
             <li><router-link to="/proyectos">Proyectos</router-link></li>
             <li><router-link to="/admin/comunicados">Comunicados</router-link></li>
+            <li v-if="isAdmin"><router-link to="/admin/usuarios">Usuarios</router-link></li>
           </ul>
         </div>
       </div>
