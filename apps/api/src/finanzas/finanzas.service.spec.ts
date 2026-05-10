@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { ConflictException, NotFoundException } from '@nestjs/common';
 import { FinanzasService } from './finanzas.service';
 import { AuditService } from '../common/audit/audit.service';
+import { CryptoSealService } from '../common/crypto/crypto-seal.service';
 import {
   createMockFirestore,
   createMockDocumentRef,
@@ -41,6 +42,7 @@ describe('FinanzasService', () => {
   let service: FinanzasService;
   let mockFirestore: ReturnType<typeof createMockFirestore>;
   let mockAuditService: jest.Mocked<AuditService>;
+  let mockCryptoSealService: jest.Mocked<CryptoSealService>;
 
   beforeEach(async () => {
     mockFirestore = createMockFirestore();
@@ -57,10 +59,20 @@ describe('FinanzasService', () => {
       logActionWithTransactionOrBatch: jest.fn(),
     } as any;
 
+    mockCryptoSealService = {
+      computeTransactionHash: jest.fn().mockReturnValue('fake-seal-hash-abc123'),
+      getLastTransactionSnapshot: jest.fn().mockResolvedValue({
+        lastHash: null,
+        lastSequence: 0,
+      }),
+      verifyChainIntegrity: jest.fn(),
+    } as any;
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         FinanzasService,
         { provide: AuditService, useValue: mockAuditService },
+        { provide: CryptoSealService, useValue: mockCryptoSealService },
       ],
     }).compile();
 
@@ -110,7 +122,7 @@ describe('FinanzasService', () => {
 
   describe('createTransaction — INGRESO', () => {
     it('debe sumar monto al saldo total y no actualizar proyecto', async () => {
-      const { instRef } = setupCollectionRefs();
+      const { instRef, transRef } = setupCollectionRefs();
       const instSnap = createMockDocSnapshot('liceo_agb', INST_DATA);
       const mockTxn = setupTransactionRun([instSnap]);
 
@@ -118,6 +130,16 @@ describe('FinanzasService', () => {
 
       expect(result.nuevo_saldo_total).toBe(105000); // 100000 + 5000
       expect(result.proyecto_actualizado).toBeNull();
+      expect(result.numero_secuencia).toBe(1);
+      expect(result.hash_integridad).toBe('fake-seal-hash-abc123');
+      expect(mockTxn.set).toHaveBeenCalledWith(
+        transRef,
+        expect.objectContaining({
+          numero_secuencia: 1,
+          hash_previo: null,
+          hash_integridad: 'fake-seal-hash-abc123',
+        }),
+      );
       expect(mockTxn.update).toHaveBeenCalledWith(
         instRef,
         expect.objectContaining({ saldo_total: 105000 }),
@@ -129,7 +151,7 @@ describe('FinanzasService', () => {
 
   describe('createTransaction — EGRESO', () => {
     it('debe restar monto del saldo y actualizar monto_ejecutado del proyecto', async () => {
-      const { instRef, proyectoRef } = setupCollectionRefs();
+      const { instRef, proyectoRef, transRef } = setupCollectionRefs();
       const instSnap = createMockDocSnapshot('liceo_agb', INST_DATA);
       const proyectoSnap = createMockDocSnapshot('proj-001', PROYECTO_DATA);
       const mockTxn = setupTransactionRun([instSnap, proyectoSnap]);
@@ -142,6 +164,16 @@ describe('FinanzasService', () => {
         id: 'proj-001',
         nuevo_monto_ejecutado: 15000, // 10000 + 5000
       });
+      expect(result.numero_secuencia).toBe(1);
+      expect(result.hash_integridad).toBe('fake-seal-hash-abc123');
+      expect(mockTxn.set).toHaveBeenCalledWith(
+        transRef,
+        expect.objectContaining({
+          numero_secuencia: 1,
+          hash_previo: null,
+          hash_integridad: 'fake-seal-hash-abc123',
+        }),
+      );
       expect(mockTxn.update).toHaveBeenCalledWith(
         proyectoRef,
         expect.objectContaining({ monto_ejecutado: 15000 }),
@@ -149,15 +181,24 @@ describe('FinanzasService', () => {
     });
 
     it('EGRESO sin proyecto_id solo debe actualizar saldo total', async () => {
-      setupCollectionRefs();
+      const { transRef } = setupCollectionRefs();
       const instSnap = createMockDocSnapshot('liceo_agb', INST_DATA);
-      setupTransactionRun([instSnap]);
+      const mockTxn = setupTransactionRun([instSnap]);
 
       const dto = { ...BASE_DTO, tipo: 'EGRESO' as const };
       const result = await service.createTransaction(dto, 'uid-1', 'Tester');
 
       expect(result.nuevo_saldo_total).toBe(95000);
       expect(result.proyecto_actualizado).toBeNull();
+      expect(result.numero_secuencia).toBe(1);
+      expect(mockTxn.set).toHaveBeenCalledWith(
+        transRef,
+        expect.objectContaining({
+          numero_secuencia: 1,
+          hash_previo: null,
+          hash_integridad: 'fake-seal-hash-abc123',
+        }),
+      );
     });
   });
 
