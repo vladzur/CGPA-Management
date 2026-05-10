@@ -54,6 +54,20 @@
         { "fieldPath": "estado", "order": "ASCENDING" },
         { "fieldPath": "fecha_publicacion", "order": "DESCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "transacciones",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "numero_secuencia", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "transacciones",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "numero_secuencia", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

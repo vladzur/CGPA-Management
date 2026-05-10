@@ -3,10 +3,14 @@ import * as admin from 'firebase-admin';
 import { Transaccion, Proyecto } from '@cgpa/shared';
 import { CreateTransactionDto } from '../transactions/dto/create-transaction.dto';
 import { AuditService } from '../common/audit/audit.service';
+import { CryptoSealService } from '../common/crypto/crypto-seal.service';
 
 @Injectable()
 export class FinanzasService {
-  constructor(private readonly auditService: AuditService) {}
+  constructor(
+    private readonly auditService: AuditService,
+    private readonly cryptoSealService: CryptoSealService,
+  ) {}
 
   // En producción, esto idealmente se inyecta mediante un proveedor de Firebase, 
   // pero para este ejemplo lo accedemos directamente.
@@ -17,6 +21,10 @@ export class FinanzasService {
   /**
    * Crea una transacción financiera utilizando agregación atómica para garantizar
    * la consistencia de los saldos de la institución y el proyecto.
+   *
+   * Adicionalmente, aplica un sello criptográfico (SHA-256 encadenado) que garantiza
+   * la inmutabilidad e intrazabilidad del registro. Cualquier alteración posterior
+   * al documento romperá la cadena y será detectable mediante la verificación de integridad.
    */
   async createTransaction(dto: CreateTransactionDto, userUid: string, userName: string) {
     const db = this.db;
@@ -47,6 +55,13 @@ export class FinanzasService {
           }
         }
 
+        // --- 1b. LECTURA DEL ÚLTIMO SELLO CRIPTOGRÁFICO ---
+        // Se realiza DENTRO de la transacción para garantizar que el snapshot de
+        // la cadena es consistente con el estado actual de la base de datos
+        // (evita race conditions si dos transacciones se crean simultáneamente).
+        const { lastHash, lastSequence } = await this.cryptoSealService.getLastTransactionSnapshot(t);
+        const nextSequence = lastSequence + 1;
+
         // --- 2. CÁLCULOS EN MEMORIA ---
         const institucionData = instDoc.data();
         let nuevoSaldoTotal = institucionData?.saldo_total || 0;
@@ -64,7 +79,7 @@ export class FinanzasService {
         }
 
         // Construimos el documento base respetando el esquema de Zod
-        const nuevaTransaccion: Transaccion = {
+        const transaccionBase: Transaccion = {
           ...dto,
           estado: 'CONCILIADO', 
           registrado_por: { uid: userUid, nombre: userName },
@@ -72,7 +87,26 @@ export class FinanzasService {
           fecha: admin.firestore.Timestamp.now() as any,
         };
 
-        // --- 3. ESCRITURAS ---
+        // --- 2b. SELLO CRIPTOGRÁFICO ---
+        // Calculamos el hash SHA-256 sobre los campos críticos + el hash anterior.
+        // Esto crea una cadena inviolable: si alguien altera este documento en el
+        // futuro, el hash recomputado no coincidirá con el almacenado.
+        const hashIntegridad = this.cryptoSealService.computeTransactionHash(
+          transaccionBase,
+          lastHash,
+          nextSequence,
+        );
+
+        // Documento final con sello criptográfico
+        const nuevaTransaccion: Transaccion = {
+          ...transaccionBase,
+          numero_secuencia: nextSequence,
+          hash_previo: lastHash,
+          hash_integridad: hashIntegridad,
+        };
+
+        // --- 3. ESCRITURAS (solo .set() — NUNCA .update() ni .delete() en transacciones) ---
+        // Append-Only: cada transacción financiera es un registro permanente e inmutable.
         t.set(transaccionRef, nuevaTransaccion);
         
         t.update(instRef, {
@@ -100,6 +134,8 @@ export class FinanzasService {
         // --- 4. RESPUESTA ---
         return {
           id: transaccionRef.id,
+          numero_secuencia: nextSequence,
+          hash_integridad: hashIntegridad,
           nuevo_saldo_total: nuevoSaldoTotal,
           proyecto_actualizado: proyectoRef && dto.tipo === 'EGRESO' ? {
             id: proyectoRef.id,
@@ -117,3 +153,4 @@ export class FinanzasService {
     }
   }
 }
+

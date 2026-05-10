@@ -7,12 +7,14 @@ import { FinanzasService } from './finanzas/finanzas.service';
 import { StorageService } from './storage/storage.service';
 import { ProyectosModule } from './proyectos/proyectos.module';
 import { AuditModule } from './common/audit/audit.module';
+import { CryptoSealModule } from './common/crypto/crypto-seal.module';
 import { UsuariosModule } from './usuarios/usuarios.module';
 import { ComunicadosModule } from './comunicados/comunicados.module';
 
 @Module({
-  imports: [ProyectosModule, AuditModule, UsuariosModule, ComunicadosModule],
+  imports: [ProyectosModule, AuditModule, CryptoSealModule, UsuariosModule, ComunicadosModule],
   controllers: [AppController, TransactionsController],
   providers: [AppService, FinanzasService, StorageService],
 })
 export class AppModule {}
+
