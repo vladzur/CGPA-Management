@@ -1,20 +1,22 @@
-import { Controller, Post, Body, UsePipes, Req, UseInterceptors, UploadedFile, BadRequestException, UseGuards } from '@nestjs/common';
+import { Controller, Post, Get, Query, Body, UsePipes, Req, UseInterceptors, UploadedFile, BadRequestException, UseGuards } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { FinanzasService } from '../finanzas/finanzas.service';
 import { StorageService } from '../storage/storage.service';
+import { CryptoSealService } from '../common/crypto/crypto-seal.service';
 import { CreateTransactionDto, CreateTransactionSchema } from './dto/create-transaction.dto';
 import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
 import { FirebaseAuthGuard } from '../common/guards/firebase-auth.guard';
 
 @Controller('transactions')
-@UseGuards(FirebaseAuthGuard)
 export class TransactionsController {
   constructor(
     private readonly finanzasService: FinanzasService,
-    private readonly storageService: StorageService
+    private readonly storageService: StorageService,
+    private readonly cryptoSealService: CryptoSealService,
   ) {}
 
   @Post()
+  @UseGuards(FirebaseAuthGuard)
   @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 5 * 1024 * 1024 } }))
   async createTransaction(
     @Body(new ZodValidationPipe(CreateTransactionSchema)) createTransactionDto: CreateTransactionDto, 
@@ -46,4 +48,25 @@ export class TransactionsController {
       data: resultado,
     };
   }
+
+  /**
+   * Verificación pública de integridad criptográfica de la cadena de transacciones.
+   *
+   * Este endpoint es de ACCESO LIBRE para garantizar transparencia:
+   * cualquier miembro puede verificar que el historial financiero
+   * no ha sido alterado desde que fue registrado.
+   *
+   * @param limit - Opcional: limita el número de transacciones a verificar (útil para pruebas)
+   */
+  @Get('verify-integrity')
+  async verifyIntegrity(@Query('limit') limit?: string) {
+    const limitNum = limit ? parseInt(limit, 10) : undefined;
+    const reporte = await this.cryptoSealService.verifyChainIntegrity(limitNum);
+
+    return {
+      message: reporte.mensaje,
+      data: reporte,
+    };
+  }
 }
+

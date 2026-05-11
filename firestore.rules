@@ -3,40 +3,62 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // Configuración global y proyectos/transacciones (Lectura pública, escritura por backend)
+    // Configuración global: lectura pública, escritura solo desde backend (Admin SDK)
     match /configuracion/{document=**} {
       allow read: if true;
       allow write: if false; 
     }
     
+    // Proyectos: lectura pública, escritura solo desde backend
     match /proyectos/{document=**} {
       allow read: if true;
       allow write: if false; 
     }
     
-    match /transacciones/{document=**} {
+    // ─── TRANSACCIONES: Estrategia Append-Only + Sello Criptográfico ─────────────
+    // Las transacciones financieras son INMUTABLES por diseño.
+    // El backend (Admin SDK) es el único que puede crearlas, y lo hace aplicando
+    // un sello SHA-256 encadenado para garantizar trazabilidad e integridad.
+    //
+    // NUNCA se permite actualizar (update) ni eliminar (delete) una transacción,
+    // ni siquiera desde el backend de administración.
+    match /transacciones/{transaccionId} {
+      // Lectura pública: cualquier miembro puede auditar el historial financiero
       allow read: if true;
-      allow write: if false; 
+
+      // Append-Only: solo el Admin SDK (backend) puede crear nuevos registros.
+      // Los clientes web/móvil no pueden escribir directamente (bypassa esta regla = false).
+      allow create: if false;
+
+      // ❌ PROHIBIDO actualizar transacciones ya registradas.
+      // Si se necesita una corrección, se debe registrar una nueva transacción
+      // de ajuste (INGRESO/EGRESO compensatorio) con su propio sello criptográfico.
+      allow update: if false;
+
+      // ❌ PROHIBIDO eliminar transacciones.
+      // El historial financiero es permanente e inalterable.
+      allow delete: if false;
     }
 
-    // Comunicados (Lectura pública, escritura por backend)
+    // Comunicados: lectura pública, escritura solo desde backend
     match /comunicados/{document=**} {
       allow read: if true;
       allow write: if false;
     }
 
-    // Colecciones restringidas (Solo lectura para ADMIN, escrituras vía backend)
+    // Auditoría: solo lectura para ADMIN, escrituras vía backend (Admin SDK)
     match /auditoria/{document=**} {
       allow read: if request.auth != null && request.auth.token.role == 'ADMIN';
-      allow write: if false; // Solo el backend (Admin SDK) puede escribir
+      allow write: if false;
     }
 
+    // Usuarios: solo acceso para ADMIN, escrituras vía backend
     match /usuarios/{document=**} {
       allow read: if request.auth != null && request.auth.token.role == 'ADMIN';
-      allow write: if false; // Solo el backend puede crear y aprobar usuarios
+      allow write: if false;
     }
     
-    // Por si acaso, bloquear todo lo demás
+    // Bloquear todo lo no declarado explícitamente
     match /{document=**} {
       allow read: if false;
       allow write: if false;
