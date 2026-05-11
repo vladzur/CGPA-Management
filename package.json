@@ -16,6 +16,12 @@
       "serialize-javascript": ">=7.0.5",
       "uuid": ">=14.0.0",
       "@tootallnate/once": ">=3.0.1"
-    }
+    },
+    "onlyBuiltDependencies": [
+      "@firebase/util",
+      "@nestjs/core",
+      "protobufjs",
+      "unrs-resolver"
+    ]
   }
 }
