@@ -7,15 +7,22 @@
     "build": "pnpm -r build",
     "lint": "pnpm --parallel -r lint"
   },
+  "packageManager": "pnpm@11.0.9",
   "engines": {
     "node": ">=24.0.0",
-    "pnpm": ">=9.0.0"
+    "pnpm": ">=11.0.0"
   },
   "pnpm": {
     "overrides": {
       "serialize-javascript": ">=7.0.5",
       "uuid": ">=14.0.0",
       "@tootallnate/once": ">=3.0.1"
-    }
+    },
+    "onlyBuiltDependencies": [
+      "@firebase/util",
+      "@nestjs/core",
+      "protobufjs",
+      "unrs-resolver"
+    ]
   }
 }
