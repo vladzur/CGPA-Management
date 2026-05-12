@@ -46,6 +46,14 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // Documentos: lectura pública para verificación, escritura solo desde backend
+    match /documentos/{documentoId} {
+      allow read: if true;
+      allow create: if false;
+      allow update: if false;
+      allow delete: if false;
+    }
+
     // Auditoría: solo lectura para ADMIN, escrituras vía backend (Admin SDK)
     match /auditoria/{document=**} {
       allow read: if request.auth != null && request.auth.token.role == 'ADMIN';
