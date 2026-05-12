@@ -1,10 +1,12 @@
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
-import { 
-  getAuth, 
-  onAuthStateChanged, 
+import {
+  getAuth,
+  onAuthStateChanged,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
+  signInWithPopup,
+  GoogleAuthProvider,
   signOut as firebaseSignOut,
   updateProfile,
   type User
@@ -58,6 +60,16 @@ export const useAuthStore = defineStore('auth', () => {
     return userCredential.user;
   };
 
+  const loginWithGoogle = async () => {
+    const provider = new GoogleAuthProvider();
+    const result = await signInWithPopup(auth, provider);
+    // Forzamos la recarga del token para obtener los claims
+    token.value = await result.user.getIdToken(true);
+    const tokenResult = await result.user.getIdTokenResult();
+    claims.value = tokenResult.claims;
+    return result.user;
+  };
+
   const login = async (email: string, password: string) => {
     const cred = await signInWithEmailAndPassword(auth, email, password);
     // Forzamos la recarga del token para obtener los claims si acaban de ser aprobados
@@ -87,6 +99,7 @@ export const useAuthStore = defineStore('auth', () => {
     isInitialized,
     register,
     login,
+    loginWithGoogle,
     logout,
     refreshToken
   };
