@@ -97,7 +97,7 @@ const deleteProject = async () => {
   isDeleting.value = true;
   try {
     await apiClient.delete(`/proyectos/${projectId}`);
-    router.push('/proyectos');
+    router.push('/admin/proyectos');
   } catch (error: any) {
     alert(error.response?.data?.message || 'Error al eliminar');
   } finally {
@@ -132,7 +132,7 @@ const isOverBudget = () => {
 <template>
   <div class="container mx-auto p-4 max-w-5xl" v-if="project">
     <div class="mb-4">
-      <button @click="router.push('/proyectos')" class="btn btn-ghost btn-sm text-gray-500 hover:text-neutral">
+      <button @click="router.push('/admin/proyectos')" class="btn btn-ghost btn-sm text-gray-500 hover:text-neutral">
         &larr; Volver a Proyectos
       </button>
     </div>
@@ -306,6 +306,6 @@ const isOverBudget = () => {
   <!-- Not found state -->
   <div v-else class="text-center py-20">
     <h2 class="text-2xl font-bold text-gray-600 mb-4">Proyecto no encontrado</h2>
-    <button @click="router.push('/proyectos')" class="btn btn-primary">Volver a la lista</button>
+    <button @click="router.push('/admin/proyectos')" class="btn btn-primary">Volver a la lista</button>
   </div>
 </template>

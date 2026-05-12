@@ -46,7 +46,7 @@ const submitProject = async () => {
 };
 
 const goToDetail = (id: string) => {
-  router.push(`/proyectos/${id}`);
+  router.push(`/admin/proyectos/${id}`);
 };
 
 const formatCurrency = (value: number) => {
