@@ -4,3 +4,4 @@ export * from './models/proyecto';
 export * from './models/transaccion';
 export * from './models/usuario';
 export * from './models/comunicado';
+export * from './models/documento';

@@ -28,6 +28,12 @@ const router = createRouter({
       component: () => import('../views/ComunicadosPublic.vue')
     },
 
+    {
+      path: '/validar/:uuid',
+      name: 'ValidarDocumento',
+      component: () => import('../views/ValidarDocumento.vue')
+    },
+
     // --- Rutas de administración (protegidas) ---
     {
       path: '/admin',
@@ -59,6 +65,12 @@ const router = createRouter({
           path: 'comunicados',
           name: 'ComunicadosAdmin',
           component: () => import('../views/admin/ComunicadosAdmin.vue'),
+          meta: { requiresAdmin: true }
+        },
+        {
+          path: 'documentos',
+          name: 'DocumentosAdmin',
+          component: () => import('../views/admin/DocumentosAdmin.vue'),
           meta: { requiresAdmin: true }
         }
       ]

@@ -10,9 +10,10 @@ import { AuditModule } from './common/audit/audit.module';
 import { CryptoSealModule } from './common/crypto/crypto-seal.module';
 import { UsuariosModule } from './usuarios/usuarios.module';
 import { ComunicadosModule } from './comunicados/comunicados.module';
+import { DocumentosModule } from './documentos/documentos.module';
 
 @Module({
-  imports: [ProyectosModule, AuditModule, CryptoSealModule, UsuariosModule, ComunicadosModule],
+  imports: [ProyectosModule, AuditModule, CryptoSealModule, UsuariosModule, ComunicadosModule, DocumentosModule],
   controllers: [AppController, TransactionsController],
   providers: [AppService, FinanzasService, StorageService],
 })
