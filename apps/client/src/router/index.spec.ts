@@ -123,19 +123,19 @@ describe('Router', () => {
 
   describe('redirects de compatibilidad', () => {
     it('debe tener configurado el redirect de /proyectos a /admin/proyectos', () => {
-      const route = router.getRoutes().find((r) => r.path === '/proyectos');
+      const route = router.getRoutes().find((r: { path: string; redirect?: unknown }) => r.path === '/proyectos');
       expect(route).toBeDefined();
       expect(route!.redirect).toBe('/admin/proyectos');
     });
 
     it('debe tener configurado el redirect de /proyectos/:id a /admin/proyectos/:id', () => {
-      const route = router.getRoutes().find((r) => r.path === '/proyectos/:id');
+      const route = router.getRoutes().find((r: { path: string; redirect?: unknown }) => r.path === '/proyectos/:id');
       expect(route).toBeDefined();
       expect(route!.redirect).toBeDefined();
     });
 
     it('debe tener configurado el redirect de /admin/pendientes a /admin/usuarios', () => {
-      const route = router.getRoutes().find((r) => r.path === '/admin/pendientes');
+      const route = router.getRoutes().find((r: { path: string; redirect?: unknown }) => r.path === '/admin/pendientes');
       expect(route).toBeDefined();
       expect(route!.redirect).toBe('/admin/usuarios');
     });
