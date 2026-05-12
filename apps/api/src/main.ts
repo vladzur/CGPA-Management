@@ -20,6 +20,20 @@ async function bootstrap() {
     if (!admin.apps.length) {
       admin.initializeApp();
     }
+
+    // Crear documento de configuracion global si no existe (first-run)
+    const db = admin.firestore();
+    const configRef = db.collection('configuracion').doc('liceo_agb');
+    const configSnap = await configRef.get();
+    if (!configSnap.exists) {
+      await configRef.set({
+        nombre: 'Centro General de Padres AGB',
+        periodo_actual: '2026',
+        saldo_total: 0,
+        ultima_actualizacion: admin.firestore.FieldValue.serverTimestamp(),
+      });
+      console.log('Documento de configuracion global creado automaticamente.');
+    }
   }
 
   const app = await NestFactory.create(AppModule);
