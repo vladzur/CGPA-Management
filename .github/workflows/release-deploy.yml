@@ -105,4 +105,5 @@ jobs:
             --region southamerica-west1 \
             --allow-unauthenticated \
             --quiet \
-            --tag "$SAFE_TAG"
+            --tag "$SAFE_TAG" \
+            --update-env-vars=FIREBASE_STORAGE_BUCKET=${{ secrets.FIREBASE_STORAGE_BUCKET }}

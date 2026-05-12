@@ -5,7 +5,8 @@ import { v4 as uuidv4 } from 'uuid';
 @Injectable()
 export class StorageService {
   private get bucket() {
-    return admin.storage().bucket('cgpa-liceo-agb.appspot.com');
+    const bucketName = process.env.FIREBASE_STORAGE_BUCKET || 'cgpa-liceo-agb.appspot.com';
+    return admin.storage().bucket(bucketName);
   }
 
   private async uploadFile(file: Express.Multer.File, folder: string): Promise<string> {
