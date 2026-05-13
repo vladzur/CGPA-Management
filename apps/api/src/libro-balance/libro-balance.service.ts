@@ -139,7 +139,7 @@ export class LibroBalanceService {
       .collection('transacciones')
       .where('fecha', '>=', admin.firestore.Timestamp.fromDate(start))
       .where('fecha', '<=', admin.firestore.Timestamp.fromDate(end))
-      .orderBy('numero_secuencia', 'asc');
+      .orderBy('fecha', 'asc');
 
     if (proyecto_id) {
       query = this.db
@@ -147,14 +147,19 @@ export class LibroBalanceService {
         .where('proyecto_id', '==', proyecto_id)
         .where('fecha', '>=', admin.firestore.Timestamp.fromDate(start))
         .where('fecha', '<=', admin.firestore.Timestamp.fromDate(end))
-        .orderBy('numero_secuencia', 'asc');
+        .orderBy('fecha', 'asc');
     }
 
     const snapshot = await query.get();
-    return snapshot.docs.map(
+    const transacciones = snapshot.docs.map(
       (doc: admin.firestore.DocumentSnapshot) =>
         ({ id: doc.id, ...doc.data() }) as unknown as Transaccion,
     );
+
+    // Ordenar en memoria para evitar necesidad de índice compuesto con numero_secuencia
+    transacciones.sort((a, b) => (a.numero_secuencia ?? 0) - (b.numero_secuencia ?? 0));
+
+    return transacciones;
   }
 
   /**
