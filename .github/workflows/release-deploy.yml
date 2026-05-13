@@ -106,4 +106,4 @@ jobs:
             --allow-unauthenticated \
             --quiet \
             --tag "$SAFE_TAG" \
-            --update-env-vars=FIREBASE_STORAGE_BUCKET=${{ secrets.FIREBASE_STORAGE_BUCKET }}
+            --update-env-vars=FIREBASE_STORAGE_BUCKET=${{ secrets.FIREBASE_STORAGE_BUCKET }},DOCUMENT_SALT=${{ secrets.DOCUMENT_SALT }},VERIFICATION_BASE_URL=${{ secrets.VERIFICATION_BASE_URL }},CGPA_RUT=${{ secrets.CGPA_RUT }}
