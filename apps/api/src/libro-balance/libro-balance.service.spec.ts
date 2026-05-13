@@ -425,6 +425,80 @@ describe('LibroBalanceService', () => {
       expect(Buffer.isBuffer(buffer)).toBe(true);
     });
 
+    it('modo borrador: no debe crear ni sellar Documento MVI', async () => {
+      const txs = [
+        buildTransaccion({
+          tipo: 'INGRESO',
+          monto: 75000,
+          numero_secuencia: 1,
+        }),
+      ];
+
+      const mockCollection = {
+        where: jest.fn().mockReturnThis(),
+        orderBy: jest.fn().mockReturnThis(),
+        get: jest
+          .fn()
+          .mockResolvedValue(
+            createQuerySnapshot(
+              txs.map((t, i) => ({ id: `tx-${i + 1}`, data: t })),
+            ),
+          ),
+      };
+
+      jest
+        .spyOn(mockFirestore, 'collection')
+        .mockReturnValue(mockCollection as any);
+
+      const buffer = await service.generateBalanceBook(
+        { ...dtoBase, modo: 'borrador' },
+        'user-1',
+        'Admin',
+      );
+
+      expect(Buffer.isBuffer(buffer)).toBe(true);
+      expect(mockDocsService.create).not.toHaveBeenCalled();
+      expect(mockDocsService.sellar).not.toHaveBeenCalled();
+      expect(mockDocsService.findOne).not.toHaveBeenCalled();
+    });
+
+    it('modo firmado: debe crear, sellar y generar PDF con MVI', async () => {
+      const txs = [
+        buildTransaccion({
+          tipo: 'INGRESO',
+          monto: 75000,
+          numero_secuencia: 1,
+        }),
+      ];
+
+      const mockCollection = {
+        where: jest.fn().mockReturnThis(),
+        orderBy: jest.fn().mockReturnThis(),
+        get: jest
+          .fn()
+          .mockResolvedValue(
+            createQuerySnapshot(
+              txs.map((t, i) => ({ id: `tx-${i + 1}`, data: t })),
+            ),
+          ),
+      };
+
+      jest
+        .spyOn(mockFirestore, 'collection')
+        .mockReturnValue(mockCollection as any);
+
+      const buffer = await service.generateBalanceBook(
+        { ...dtoBase, modo: 'firmado' },
+        'user-1',
+        'Admin',
+      );
+
+      expect(Buffer.isBuffer(buffer)).toBe(true);
+      expect(mockDocsService.create).toHaveBeenCalled();
+      expect(mockDocsService.sellar).toHaveBeenCalled();
+      expect(mockDocsService.findOne).toHaveBeenCalledWith('doc-001');
+    });
+
     it('debe manejar muchas transacciones con paginación automática', async () => {
       const txs = Array.from({ length: 80 }, (_, i) =>
         buildTransaccion({
