@@ -8,8 +8,17 @@ import {
 import { LibroBalanceService } from './libro-balance.service';
 import { DocumentosService } from '../documentos/documentos.service';
 
+// eslint-disable-next-line no-var
+var mockPdfDoc: Record<string, any>;
+
 jest.mock('pdfkit', () => {
-  const mockDoc = {
+  const defaultPage = {
+    height: 842,
+    width: 595,
+    margins: { bottom: 60, top: 50, left: 40, right: 40 },
+  };
+
+  mockPdfDoc = {
     on: jest.fn((event: string, cb: (...args: unknown[]) => void) => {
       if (event === 'data') {
         cb(Buffer.from('fake-pdf-content'));
@@ -17,7 +26,7 @@ jest.mock('pdfkit', () => {
       if (event === 'end') {
         cb();
       }
-      return mockDoc;
+      return mockPdfDoc;
     }),
     font: jest.fn().mockReturnThis(),
     fontSize: jest.fn().mockReturnThis(),
@@ -31,16 +40,14 @@ jest.mock('pdfkit', () => {
     moveTo: jest.fn().mockReturnThis(),
     lineTo: jest.fn().mockReturnThis(),
     end: jest.fn(),
-    page: { height: 842, width: 595 },
+    page: { ...defaultPage },
     y: 50,
     addPage: jest.fn(),
   };
 
-  const PDFDocument = jest.fn(() => mockDoc);
-
   return {
     __esModule: true,
-    default: PDFDocument,
+    default: jest.fn(() => mockPdfDoc),
   };
 });
 
@@ -104,6 +111,14 @@ describe('LibroBalanceService', () => {
 
   beforeEach(async () => {
     jest.clearAllMocks();
+
+    // Resetear estado del mock de PDFKit
+    mockPdfDoc.y = 50;
+    mockPdfDoc.page = {
+      height: 842,
+      width: 595,
+      margins: { bottom: 60, top: 50, left: 40, right: 40 },
+    };
 
     mockFirestore = createMockFirestore();
     (admin.firestore as any).Timestamp = {
@@ -534,6 +549,67 @@ describe('LibroBalanceService', () => {
       expect(Buffer.isBuffer(buffer)).toBe(true);
       const createCall = (mockDocsService.create as jest.Mock).mock.calls[0][0];
       expect(createCall.descripcion).toContain('80');
+    });
+
+    it('debe saltar a nueva página si no hay espacio suficiente para el footer', async () => {
+      const txs = [buildTransaccion({ numero_secuencia: 1 })];
+
+      const mockCollection = {
+        where: jest.fn().mockReturnThis(),
+        orderBy: jest.fn().mockReturnThis(),
+        get: jest
+          .fn()
+          .mockResolvedValue(
+            createQuerySnapshot(
+              txs.map((t, i) => ({ id: `tx-${i + 1}`, data: t })),
+            ),
+          ),
+      };
+
+      jest
+        .spyOn(mockFirestore, 'collection')
+        .mockReturnValue(mockCollection as any);
+
+      // Simular que el cursor está muy abajo (poco espacio para footer)
+      mockPdfDoc.y = 800;
+
+      await service.generateBalanceBook(dtoBase, 'user-1', 'Admin');
+
+      expect(mockPdfDoc.addPage).toHaveBeenCalled();
+    });
+
+    it('debe ajustar QR dentro de los márgenes si se sale del borde inferior', async () => {
+      const txs = [buildTransaccion({ numero_secuencia: 1 })];
+
+      const mockCollection = {
+        where: jest.fn().mockReturnThis(),
+        orderBy: jest.fn().mockReturnThis(),
+        get: jest
+          .fn()
+          .mockResolvedValue(
+            createQuerySnapshot(
+              txs.map((t, i) => ({ id: `tx-${i + 1}`, data: t })),
+            ),
+          ),
+      };
+
+      jest
+        .spyOn(mockFirestore, 'collection')
+        .mockReturnValue(mockCollection as any);
+
+      // Forzar que QR se salga del borde inferior
+      mockPdfDoc.y = 800;
+
+      await service.generateBalanceBook(dtoBase, 'user-1', 'Admin');
+
+      // Verificar que el QR se posicionó dentro de los márgenes
+      const imageCall = mockPdfDoc.image.mock.calls[0] as any[];
+      expect(imageCall).toBeDefined();
+      const qrY = imageCall[2] as number;
+      const qrSize = (imageCall[3] as any).height as number;
+      const pageH = mockPdfDoc.page.height as number;
+      const marginBottom = mockPdfDoc.page.margins.bottom as number;
+      expect(qrY + qrSize).toBeLessThanOrEqual(pageH - marginBottom);
     });
   });
 });
