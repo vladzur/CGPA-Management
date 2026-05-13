@@ -57,6 +57,7 @@ const getProyectoNombre = (id?: string) => {
             <th>Categoría</th>
             <th>Descripción</th>
             <th>Proyecto</th>
+            <th class="text-center">Firma</th>
             <th class="text-right">Monto</th>
             <th class="text-center">Respaldo</th>
           </tr>
@@ -71,6 +72,12 @@ const getProyectoNombre = (id?: string) => {
             </td>
             <td class="max-w-xs truncate" :title="t.descripcion">{{ t.descripcion }}</td>
             <td class="text-sm text-base-content/70">{{ getProyectoNombre(t.proyecto_id) }}</td>
+            <td class="text-center">
+              <div v-if="t.hash_integridad" class="tooltip" :data-tip="'Secuencia #' + t.numero_secuencia + ' | Hash: ' + t.hash_integridad">
+                <span class="font-mono text-xs font-bold text-liceo-primary">{{ t.hash_integridad.substring(0, 8) }}</span><span class="font-mono text-xs text-base-content/30">{{ t.hash_integridad.substring(8) }}</span>
+              </div>
+              <span v-else class="text-gray-400 text-xs">-</span>
+            </td>
             <td class="text-right font-bold" :class="t.tipo === 'INGRESO' ? 'text-green-600' : 'text-red-600'">
               {{ t.tipo === 'INGRESO' ? '+' : '-' }}{{ formatearMoneda(t.monto) }}
             </td>

@@ -1,10 +1,18 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, computed } from 'vue';
+import { onMounted, onUnmounted, computed, ref } from 'vue';
 import { useFinanzasStore } from '../stores/finanzas';
 import TransactionForm from '../components/TransactionForm.vue';
 import TransactionList from '../components/TransactionList.vue';
+import IntegrityVerification from '../components/IntegrityVerification.vue';
 
 const store = useFinanzasStore();
+
+// Referencia para scroll al hacer clic en "Ver Movimientos"
+const transactionSection = ref<HTMLElement | null>(null);
+
+const scrollToTransactions = () => {
+  transactionSection.value?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+};
 
 onMounted(() => {
   store.init();
@@ -41,7 +49,7 @@ const saldoTotal = computed(() => store.institucion?.saldo_total || 0);
           <p class="py-4 opacity-80 text-sm font-medium">
             Actualizado en tiempo real para máxima transparencia.
           </p>
-          <button class="btn btn-neutral text-neutral-content mt-2 shadow-lg border-0 bg-white/20 hover:bg-white/30 backdrop-blur-md">
+          <button @click="scrollToTransactions" class="btn btn-neutral text-neutral-content mt-2 shadow-lg border-0 bg-white/20 hover:bg-white/30 backdrop-blur-md">
             Ver Movimientos
           </button>
         </div>
@@ -118,7 +126,12 @@ const saldoTotal = computed(() => store.institucion?.saldo_total || 0);
     </div>
     </div>
     
-    <!-- Lista de Movimientos Globales -->
-    <TransactionList />
+    <!-- Sección de Transacciones con Verificación de Integridad -->
+    <section ref="transactionSection" class="mt-8">
+      <div class="flex justify-end mb-4">
+        <IntegrityVerification />
+      </div>
+      <TransactionList />
+    </section>
   </div>
 </template>

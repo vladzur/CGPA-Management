@@ -268,6 +268,7 @@ const isOverBudget = () => {
                     <th>Fecha</th>
                     <th>Categoría</th>
                     <th>Descripción</th>
+                    <th class="text-center">Firma</th>
                     <th class="text-right">Monto</th>
                     <th>Respaldo</th>
                   </tr>
@@ -279,6 +280,12 @@ const isOverBudget = () => {
                       <span class="badge badge-ghost badge-sm font-medium">{{ t.categoria }}</span>
                     </td>
                     <td class="text-sm max-w-xs truncate" :title="t.descripcion">{{ t.descripcion }}</td>
+                    <td class="text-center">
+                      <div v-if="t.hash_integridad" class="tooltip" :data-tip="'Secuencia #' + t.numero_secuencia">
+                        <span class="font-mono text-xs font-bold text-liceo-primary">{{ t.hash_integridad.substring(0, 8) }}</span>
+                      </div>
+                      <span v-else class="text-xs text-gray-400">-</span>
+                    </td>
                     <td class="text-right font-bold text-error">
                       -{{ formatCurrency(t.monto) }}
                     </td>
