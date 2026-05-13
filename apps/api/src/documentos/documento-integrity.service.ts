@@ -43,7 +43,7 @@ export class DocumentoIntegrityService {
     return new Promise((resolve, reject) => {
       const chunks: Buffer[] = [];
       const doc = new PDFDocument({
-        margins: { top: 50, bottom: 60, left: 50, right: 50 },
+        margins: { top: 50, bottom: 50, left: 50, right: 50 },
         size: 'A4',
       });
 
@@ -59,39 +59,90 @@ export class DocumentoIntegrityService {
                 documento.fecha_emision,
             );
 
+      const pageHeight = doc.page.height;
+      const pageWidth = doc.page.width;
+      const marginX = 50;
+      const usableWidth = pageWidth - marginX * 2;
+      const footerHeight = 110; // espacio reservado para hash + QR
+      const contentBottom = pageHeight - marginX - footerHeight;
+
+      // ─── CONTENIDO ──────────────────────────────────────────────────
+
       // Título
-      doc.fontSize(18).text(documento.titulo, { align: 'center' });
+      doc.fontSize(18).text(documento.titulo, {
+        align: 'center',
+        continued: false,
+      });
       doc.moveDown(1);
 
       // Datos del documento
-      doc
-        .fontSize(12)
-        .text(`Monto: $${documento.monto.toLocaleString('es-CL')}`, {
-          continued: false,
-        });
+      doc.fontSize(12);
+      doc.text(`Monto: $${documento.monto.toLocaleString('es-CL')}`);
       doc.text(`Fecha de Emisión: ${fechaEmision.toLocaleDateString('es-CL')}`);
       doc.text(`RUT Emisor: ${documento.rut_emisor}`);
       doc.moveDown(0.5);
-      doc.text(`Descripción: ${documento.descripcion}`);
 
-      // Hash en pie de página (izquierda)
+      // Descripción (puede ser larga — dejamos que fluya con control de espacio)
+      doc.text(`Descripción: ${documento.descripcion}`, {
+        width: usableWidth,
+      });
+
+      // ─── VERIFICAR ESPACIO PARA FOOTER ──────────────────────────────
+
+      // Si el contenido sobrepasó el área de contenido, ir a nueva página
+      if (doc.y > contentBottom) {
+        doc.addPage();
+      }
+
+      // Posicionar cursor al fondo de la página actual
+      const bottomY = pageHeight - marginX - footerHeight + 20;
+
+      // Línea separadora
+      doc
+        .moveTo(marginX, bottomY)
+        .lineTo(pageWidth - marginX, bottomY)
+        .stroke('#cccccc');
+
+      // ─── PIE: HASH (izquierda) + QR (derecha) ───────────────────────
+
+      const footerTextY = bottomY + 12;
       const hashShort =
         documento.hash_integridad?.substring(0, 8) ?? '--------';
-      const bottomY = doc.page.height - 50;
+
+      doc
+        .fontSize(9)
+        .fillColor('#333333')
+        .text(`Hash de integridad: ${hashShort}`, marginX, footerTextY, {
+          width: usableWidth * 0.55,
+          align: 'left',
+        });
 
       doc
         .fontSize(8)
-        .text(`Hash: ${hashShort}`, 50, bottomY, { width: 300, align: 'left' });
+        .fillColor('#888888')
+        .text(
+          `UUID: ${documento.uuid_verificacion ?? '--------'}`,
+          marginX,
+          footerTextY + 14,
+          { width: usableWidth * 0.55, align: 'left' },
+        );
 
-      // QR en pie de página (derecha) — 2x2 cm ≈ 56px a 72dpi
+      // QR code (derecha) — más grande: ~3.5 cm ≈ 100px
       if (documento.qr_base64) {
+        const qrSize = 100;
+        const qrX = pageWidth - marginX - qrSize;
+        const qrY = bottomY + 5;
+
+        // Fondo blanco detrás del QR para asegurar legibilidad
+        doc.rect(qrX - 4, qrY - 4, qrSize + 8, qrSize + 8).fill('#ffffff');
+
         const qrBuffer = Buffer.from(
           documento.qr_base64.replace(/^data:image\/png;base64,/, ''),
           'base64',
         );
-        doc.image(qrBuffer, doc.page.width - 106, bottomY - 10, {
-          width: 56,
-          height: 56,
+        doc.image(qrBuffer, qrX, qrY, {
+          width: qrSize,
+          height: qrSize,
         });
       }
 
