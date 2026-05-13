@@ -5,7 +5,6 @@ import {
   Req,
   Res,
   UseGuards,
-  Header,
   StreamableFile,
 } from '@nestjs/common';
 import type { Response } from 'express';
@@ -23,7 +22,6 @@ export class LibroBalanceController {
 
   @Post('generar')
   @UseGuards(FirebaseAuthGuard)
-  @Header('Content-Type', 'application/pdf')
   async generar(
     @Body(new ZodValidationPipe(GenerateBalanceBookSchema))
     dto: GenerateBalanceBookDto,
