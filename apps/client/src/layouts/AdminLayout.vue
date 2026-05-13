@@ -20,6 +20,7 @@ const navItems: NavItem[] = [
   { to: '/admin/proyectos', label: 'Proyectos' },
   { to: '/admin/comunicados', label: 'Comunicados', adminOnly: true },
   { to: '/admin/documentos', label: 'Documentos', adminOnly: true },
+  { to: '/admin/libro-balance', label: 'Libro Balance', adminOnly: true },
   { to: '/admin/usuarios', label: 'Usuarios', adminOnly: true },
 ];
 

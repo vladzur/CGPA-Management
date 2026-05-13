@@ -72,6 +72,12 @@ const router = createRouter({
           name: 'DocumentosAdmin',
           component: () => import('../views/admin/DocumentosAdmin.vue'),
           meta: { requiresAdmin: true }
+        },
+        {
+          path: 'libro-balance',
+          name: 'BalanceBook',
+          component: () => import('../views/admin/BalanceBook.vue'),
+          meta: { requiresAdmin: true }
         }
       ]
     },
