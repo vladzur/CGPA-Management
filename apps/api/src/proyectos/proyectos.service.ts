@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import * as admin from 'firebase-admin';
 import { CreateProyectoDto } from './dto/create-proyecto.dto';
 import { UpdateProyectoDto } from './dto/update-proyecto.dto';
@@ -13,9 +17,13 @@ export class ProyectosService {
     return admin.firestore();
   }
 
-  async create(createProyectoDto: CreateProyectoDto, userUid: string, userName: string) {
+  async create(
+    createProyectoDto: CreateProyectoDto,
+    userUid: string,
+    userName: string,
+  ) {
     const proyectoRef = this.db.collection('proyectos').doc();
-    
+
     const nuevoProyecto: Proyecto = {
       ...createProyectoDto,
       estado: 'PLANIFICACION',
@@ -42,12 +50,16 @@ export class ProyectosService {
 
   async findAll() {
     const snapshot = await this.db.collection('proyectos').get();
-    return snapshot.docs.map(doc => {
+    return snapshot.docs.map((doc) => {
       const data = doc.data() as Proyecto;
       // Resumen financiero: presupuesto vs ejecutado
-      const avance_financiero = data.presupuesto_estimado > 0 
-        ? Math.min((data.monto_ejecutado / data.presupuesto_estimado) * 100, 100) 
-        : 0;
+      const avance_financiero =
+        data.presupuesto_estimado > 0
+          ? Math.min(
+              (data.monto_ejecutado / data.presupuesto_estimado) * 100,
+              100,
+            )
+          : 0;
 
       return {
         id: doc.id,
@@ -63,31 +75,41 @@ export class ProyectosService {
       throw new NotFoundException(`Proyecto con id ${id} no encontrado`);
     }
     const data = doc.data() as Proyecto;
-    const avance_financiero = data.presupuesto_estimado > 0 
-      ? Math.min((data.monto_ejecutado / data.presupuesto_estimado) * 100, 100) 
-      : 0;
+    const avance_financiero =
+      data.presupuesto_estimado > 0
+        ? Math.min(
+            (data.monto_ejecutado / data.presupuesto_estimado) * 100,
+            100,
+          )
+        : 0;
 
     return { id: doc.id, ...data, avance_financiero };
   }
 
-  async update(id: string, updateProyectoDto: UpdateProyectoDto, userUid: string, userName: string) {
+  async update(
+    id: string,
+    updateProyectoDto: UpdateProyectoDto,
+    userUid: string,
+    userName: string,
+  ) {
     const docRef = this.db.collection('proyectos').doc(id);
     const doc = await docRef.get();
-    
+
     if (!doc.exists) {
       throw new NotFoundException(`Proyecto con id ${id} no encontrado`);
     }
 
     const data = doc.data() as Proyecto;
-    let updates: any = { ...updateProyectoDto };
+    const updates: any = { ...updateProyectoDto };
 
     // Si el presupuesto cambia, recalcular porcentaje de avance
     if (updateProyectoDto.presupuesto_estimado !== undefined) {
       const nuevoPresupuesto = updateProyectoDto.presupuesto_estimado;
-      const avance_financiero = nuevoPresupuesto > 0 
-        ? Math.min((data.monto_ejecutado / nuevoPresupuesto) * 100, 100) 
-        : 0;
-      
+      const avance_financiero =
+        nuevoPresupuesto > 0
+          ? Math.min((data.monto_ejecutado / nuevoPresupuesto) * 100, 100)
+          : 0;
+
       // Guardamos el avance en la bd por si se consulta desde otro lado
       updates.avance_financiero = avance_financiero;
     }
@@ -111,15 +133,18 @@ export class ProyectosService {
 
   async remove(id: string, userUid: string, userName: string) {
     // Solo permitir si no tiene transacciones asociadas (integridad referencial)
-    const transaccionesSnapshot = await this.db.collection('transacciones')
+    const transaccionesSnapshot = await this.db
+      .collection('transacciones')
       .where('proyecto_id', '==', id)
       .limit(1)
       .get();
-      
+
     if (!transaccionesSnapshot.empty) {
-      throw new BadRequestException('No se puede eliminar el proyecto porque tiene transacciones asociadas.');
+      throw new BadRequestException(
+        'No se puede eliminar el proyecto porque tiene transacciones asociadas.',
+      );
     }
-    
+
     const docRef = this.db.collection('proyectos').doc(id);
     const doc = await docRef.get();
     const data = doc.exists ? doc.data() : null;

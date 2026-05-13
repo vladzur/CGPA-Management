@@ -57,14 +57,18 @@ describe('UsuariosService', () => {
     it('debe crear el usuario con activo: false y rol PENDIENTE', async () => {
       const missingSnap = createMissingDocSnapshot();
       const docRef = createMockDocumentRef('new-uid');
-      docRef.get.mockResolvedValue(missingSnap as any);
+      docRef.get.mockResolvedValue(missingSnap);
       docRef.set.mockResolvedValue(undefined as any);
 
       mockFirestore.collection.mockReturnValue({
         doc: jest.fn().mockReturnValue(docRef),
       } as any);
 
-      const result = await service.registerUser('new-uid', 'nuevo@test.cl', 'Nuevo');
+      const result = await service.registerUser(
+        'new-uid',
+        'nuevo@test.cl',
+        'Nuevo',
+      );
 
       expect(result.message).toContain('Pendiente de aprobación');
       expect(result.data).toMatchObject({
@@ -81,7 +85,7 @@ describe('UsuariosService', () => {
     it('debe llamar a setCustomUserClaims con role PENDIENTE y activo false', async () => {
       const missingSnap = createMissingDocSnapshot();
       const docRef = createMockDocumentRef('new-uid-2');
-      docRef.get.mockResolvedValue(missingSnap as any);
+      docRef.get.mockResolvedValue(missingSnap);
       docRef.set.mockResolvedValue(undefined as any);
 
       mockFirestore.collection.mockReturnValue({
@@ -97,9 +101,11 @@ describe('UsuariosService', () => {
     });
 
     it('debe lanzar BadRequestException si el usuario ya existe en Firestore', async () => {
-      const existingSnap = createMockDocSnapshot('uid-exist', { uid: 'uid-exist' });
+      const existingSnap = createMockDocSnapshot('uid-exist', {
+        uid: 'uid-exist',
+      });
       const docRef = createMockDocumentRef('uid-exist');
-      docRef.get.mockResolvedValue(existingSnap as any);
+      docRef.get.mockResolvedValue(existingSnap);
 
       mockFirestore.collection.mockReturnValue({
         doc: jest.fn().mockReturnValue(docRef),
@@ -156,24 +162,34 @@ describe('UsuariosService', () => {
         rol: 'PENDIENTE',
       });
       const docRef = createMockDocumentRef('uid-pend');
-      docRef.get.mockResolvedValue(existingSnap as any);
+      docRef.get.mockResolvedValue(existingSnap);
 
       const batch = createMockWriteBatch();
-      mockFirestore.batch.mockReturnValue(batch as any);
+      mockFirestore.batch.mockReturnValue(batch);
       mockFirestore.collection.mockReturnValue({
         doc: jest.fn().mockReturnValue(docRef),
       } as any);
 
-      const result = await service.approveUser('uid-pend', 'EDITOR', 'uid-admin', 'Admin');
+      const result = await service.approveUser(
+        'uid-pend',
+        'EDITOR',
+        'uid-admin',
+        'Admin',
+      );
 
       expect(result).toMatchObject({ targetUid: 'uid-pend', role: 'EDITOR' });
       expect(batch.update).toHaveBeenCalledWith(
         docRef,
         expect.objectContaining({ activo: true, rol: 'EDITOR' }),
       );
-      expect(mockAuditService.logActionWithTransactionOrBatch).toHaveBeenCalledWith(
+      expect(
+        mockAuditService.logActionWithTransactionOrBatch,
+      ).toHaveBeenCalledWith(
         batch,
-        expect.objectContaining({ accion: 'APROBAR_USUARIO', coleccion: 'usuarios' }),
+        expect.objectContaining({
+          accion: 'APROBAR_USUARIO',
+          coleccion: 'usuarios',
+        }),
       );
     });
 
@@ -183,10 +199,10 @@ describe('UsuariosService', () => {
         activo: false,
       });
       const docRef = createMockDocumentRef('uid-aprob');
-      docRef.get.mockResolvedValue(existingSnap as any);
+      docRef.get.mockResolvedValue(existingSnap);
 
       const batch = createMockWriteBatch();
-      mockFirestore.batch.mockReturnValue(batch as any);
+      mockFirestore.batch.mockReturnValue(batch);
       mockFirestore.collection.mockReturnValue({
         doc: jest.fn().mockReturnValue(docRef),
       } as any);
@@ -202,7 +218,7 @@ describe('UsuariosService', () => {
     it('debe lanzar NotFoundException si el usuario a aprobar no existe', async () => {
       const missingSnap = createMissingDocSnapshot();
       const docRef = createMockDocumentRef('uid-nx');
-      docRef.get.mockResolvedValue(missingSnap as any);
+      docRef.get.mockResolvedValue(missingSnap);
 
       mockFirestore.collection.mockReturnValue({
         doc: jest.fn().mockReturnValue(docRef),

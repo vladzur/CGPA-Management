@@ -4,7 +4,10 @@ import { TransaccionSchema, Transaccion } from '@cgpa/shared';
  * DTO para la creación de transacciones en la API.
  * Omite los campos que el backend inyectará internamente (como el usuario que registra y el estado inicial).
  */
-export class CreateTransactionDto implements Omit<Transaccion, 'estado' | 'registrado_por'> {
+export class CreateTransactionDto implements Omit<
+  Transaccion,
+  'estado' | 'registrado_por'
+> {
   tipo: Transaccion['tipo'];
   monto: number;
   fecha: Date; // A nivel de backend usamos Date de JS

@@ -61,13 +61,13 @@ describe('ComunicadosService', () => {
 
   function setupBatch() {
     const batch = createMockWriteBatch();
-    mockFirestore.batch.mockReturnValue(batch as any);
+    mockFirestore.batch.mockReturnValue(batch);
     return batch;
   }
 
   function setupCollection(docRef: any) {
     const mock: any = { doc: jest.fn().mockReturnValue(docRef) };
-    mockFirestore.collection.mockReturnValue(mock as any);
+    mockFirestore.collection.mockReturnValue(mock);
     return mock;
   }
 
@@ -96,7 +96,9 @@ describe('ComunicadosService', () => {
       });
       expect(batch.set).toHaveBeenCalledWith(
         docRef,
-        expect.objectContaining({ creado_por: { uid: 'uid-admin', nombre: 'Admin' } }),
+        expect.objectContaining({
+          creado_por: { uid: 'uid-admin', nombre: 'Admin' },
+        }),
       );
       expect(batch.commit).toHaveBeenCalledTimes(1);
     });
@@ -114,9 +116,16 @@ describe('ComunicadosService', () => {
       };
       await service.create(dto, 'uid-admin', 'Admin');
 
-      expect(mockAuditService.logActionWithTransactionOrBatch).toHaveBeenCalledTimes(1);
-      const [, entry] = (mockAuditService.logActionWithTransactionOrBatch as jest.Mock).mock.calls[0];
-      expect(entry).toMatchObject({ accion: 'CREAR_COMUNICADO', coleccion: 'comunicados' });
+      expect(
+        mockAuditService.logActionWithTransactionOrBatch,
+      ).toHaveBeenCalledTimes(1);
+      const [, entry] = (
+        mockAuditService.logActionWithTransactionOrBatch as jest.Mock
+      ).mock.calls[0];
+      expect(entry).toMatchObject({
+        accion: 'CREAR_COMUNICADO',
+        coleccion: 'comunicados',
+      });
     });
   });
 
@@ -158,7 +167,11 @@ describe('ComunicadosService', () => {
       const results = await service.findAll('BORRADOR');
 
       expect(results).toHaveLength(1);
-      expect(orderByQuery.where).toHaveBeenCalledWith('estado', '==', 'BORRADOR');
+      expect(orderByQuery.where).toHaveBeenCalledWith(
+        'estado',
+        '==',
+        'BORRADOR',
+      );
     });
   });
 
@@ -177,8 +190,16 @@ describe('ComunicadosService', () => {
       const results = await service.findAllPublic();
 
       expect(results).toHaveLength(1);
-      expect(estadoQuery.where).toHaveBeenCalledWith('estado', '==', 'PUBLICADO');
-      expect(dateQuery.where).toHaveBeenCalledWith('fecha_publicacion', '<=', expect.any(Date));
+      expect(estadoQuery.where).toHaveBeenCalledWith(
+        'estado',
+        '==',
+        'PUBLICADO',
+      );
+      expect(dateQuery.where).toHaveBeenCalledWith(
+        'fecha_publicacion',
+        '<=',
+        expect.any(Date),
+      );
     });
 
     it('debe excluir comunicados BORRADOR del endpoint publico', async () => {
@@ -201,7 +222,7 @@ describe('ComunicadosService', () => {
     it('debe retornar el comunicado si existe', async () => {
       const docRef = createMockDocumentRef('com-find');
       const snap = createMockDocSnapshot('com-find', makeComunicado());
-      docRef.get.mockResolvedValue(snap as any);
+      docRef.get.mockResolvedValue(snap);
       setupCollection(docRef);
 
       const result = await service.findOne('com-find');
@@ -213,11 +234,13 @@ describe('ComunicadosService', () => {
     it('debe lanzar NotFoundException si no existe', async () => {
       const docRef = createMockDocumentRef('com-missing');
       const missingSnap = createMissingDocSnapshot();
-      docRef.get.mockResolvedValue(missingSnap as any);
+      docRef.get.mockResolvedValue(missingSnap);
       const collection = { doc: jest.fn().mockReturnValue(docRef) };
       mockFirestore.collection.mockReturnValue(collection as any);
 
-      await expect(service.findOne('com-missing')).rejects.toThrow(NotFoundException);
+      await expect(service.findOne('com-missing')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
@@ -227,7 +250,7 @@ describe('ComunicadosService', () => {
     it('debe actualizar campos y registrar auditoria con payload_anterior', async () => {
       const docRef = createMockDocumentRef('com-upd');
       const snap = createMockDocSnapshot('com-upd', makeComunicado());
-      docRef.get.mockResolvedValue(snap as any);
+      docRef.get.mockResolvedValue(snap);
       setupCollection(docRef);
       const batch = setupBatch();
 
@@ -244,8 +267,12 @@ describe('ComunicadosService', () => {
       );
       expect(result.fecha_actualizacion).toBeDefined();
 
-      expect(mockAuditService.logActionWithTransactionOrBatch).toHaveBeenCalledTimes(1);
-      const [, entry] = (mockAuditService.logActionWithTransactionOrBatch as jest.Mock).mock.calls[0];
+      expect(
+        mockAuditService.logActionWithTransactionOrBatch,
+      ).toHaveBeenCalledTimes(1);
+      const [, entry] = (
+        mockAuditService.logActionWithTransactionOrBatch as jest.Mock
+      ).mock.calls[0];
       expect(entry).toMatchObject({
         accion: 'ACTUALIZAR_COMUNICADO',
         coleccion: 'comunicados',
@@ -257,7 +284,7 @@ describe('ComunicadosService', () => {
     it('debe lanzar NotFoundException si no existe', async () => {
       const docRef = createMockDocumentRef('com-nx');
       const missingSnap = createMissingDocSnapshot();
-      docRef.get.mockResolvedValue(missingSnap as any);
+      docRef.get.mockResolvedValue(missingSnap);
       const collection = { doc: jest.fn().mockReturnValue(docRef) };
       mockFirestore.collection.mockReturnValue(collection as any);
 
@@ -273,7 +300,7 @@ describe('ComunicadosService', () => {
     it('debe eliminar el comunicado y registrar auditoria', async () => {
       const docRef = createMockDocumentRef('com-del');
       const snap = createMockDocSnapshot('com-del', makeComunicado());
-      docRef.get.mockResolvedValue(snap as any);
+      docRef.get.mockResolvedValue(snap);
       setupCollection(docRef);
       const batch = setupBatch();
 
@@ -281,19 +308,27 @@ describe('ComunicadosService', () => {
 
       expect(result).toEqual({ message: 'Comunicado eliminado correctamente' });
       expect(batch.delete).toHaveBeenCalledWith(docRef);
-      expect(mockAuditService.logActionWithTransactionOrBatch).toHaveBeenCalledTimes(1);
-      const [, entry] = (mockAuditService.logActionWithTransactionOrBatch as jest.Mock).mock.calls[0];
+      expect(
+        mockAuditService.logActionWithTransactionOrBatch,
+      ).toHaveBeenCalledTimes(1);
+      const [, entry] = (
+        mockAuditService.logActionWithTransactionOrBatch as jest.Mock
+      ).mock.calls[0];
       expect(entry).toMatchObject({ accion: 'ELIMINAR_COMUNICADO' });
     });
 
     it('no debe fallar si el documento ya no existe', async () => {
       const docRef = createMockDocumentRef('com-inexistente');
       const missingSnap = createMissingDocSnapshot();
-      docRef.get.mockResolvedValue(missingSnap as any);
+      docRef.get.mockResolvedValue(missingSnap);
       setupCollection(docRef);
       const batch = setupBatch();
 
-      const result = await service.remove('com-inexistente', 'uid-admin', 'Admin');
+      const result = await service.remove(
+        'com-inexistente',
+        'uid-admin',
+        'Admin',
+      );
 
       expect(result).toEqual({ message: 'Comunicado eliminado correctamente' });
       expect(batch.delete).toHaveBeenCalledWith(docRef);

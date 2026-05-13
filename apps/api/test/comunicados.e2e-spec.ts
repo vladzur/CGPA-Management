@@ -42,7 +42,9 @@ describe('ComunicadosController (e2e)', () => {
   let mockComunicadosService: jest.Mocked<Partial<ComunicadosService>>;
 
   beforeAll(async () => {
-    const mockAuth = { verifyIdToken: jest.fn().mockResolvedValue(MOCK_ADMIN_USER) };
+    const mockAuth = {
+      verifyIdToken: jest.fn().mockResolvedValue(MOCK_ADMIN_USER),
+    };
     (admin.auth as jest.Mock).mockReturnValue(mockAuth);
     (admin.firestore as jest.Mock).mockReturnValue({ collection: jest.fn() });
     (admin.storage as jest.Mock).mockReturnValue({ bucket: jest.fn() });
@@ -52,8 +54,12 @@ describe('ComunicadosController (e2e)', () => {
       findAll: jest.fn().mockResolvedValue([MOCK_COMUNICADO]),
       findOne: jest.fn().mockResolvedValue(MOCK_COMUNICADO),
       create: jest.fn().mockResolvedValue(MOCK_COMUNICADO),
-      update: jest.fn().mockResolvedValue({ id: 'com-e2e-001', titulo: 'Actualizado' }),
-      remove: jest.fn().mockResolvedValue({ message: 'Comunicado eliminado correctamente' }),
+      update: jest
+        .fn()
+        .mockResolvedValue({ id: 'com-e2e-001', titulo: 'Actualizado' }),
+      remove: jest
+        .fn()
+        .mockResolvedValue({ message: 'Comunicado eliminado correctamente' }),
     };
 
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -83,7 +89,9 @@ describe('ComunicadosController (e2e)', () => {
     });
 
     it('debe llamar a findAllPublic del servicio', async () => {
-      await request(app.getHttpServer()).get('/comunicados/publicos').expect(200);
+      await request(app.getHttpServer())
+        .get('/comunicados/publicos')
+        .expect(200);
       expect(mockComunicadosService.findAllPublic).toHaveBeenCalledTimes(1);
     });
   });
@@ -118,7 +126,9 @@ describe('ComunicadosController (e2e)', () => {
 
   describe('GET /comunicados/:id', () => {
     it('debe retornar 401 sin token', async () => {
-      await request(app.getHttpServer()).get('/comunicados/com-e2e-001').expect(401);
+      await request(app.getHttpServer())
+        .get('/comunicados/com-e2e-001')
+        .expect(401);
     });
 
     it('debe retornar 404 si no existe', async () => {
@@ -133,7 +143,9 @@ describe('ComunicadosController (e2e)', () => {
     });
 
     it('debe retornar 200 con el comunicado', async () => {
-      (mockComunicadosService.findOne as jest.Mock).mockResolvedValue(MOCK_COMUNICADO);
+      (mockComunicadosService.findOne as jest.Mock).mockResolvedValue(
+        MOCK_COMUNICADO,
+      );
 
       const { body } = await request(app.getHttpServer())
         .get('/comunicados/com-e2e-001')
@@ -155,7 +167,10 @@ describe('ComunicadosController (e2e)', () => {
     };
 
     it('debe retornar 401 sin token', async () => {
-      await request(app.getHttpServer()).post('/comunicados').send(validBody).expect(401);
+      await request(app.getHttpServer())
+        .post('/comunicados')
+        .send(validBody)
+        .expect(401);
     });
 
     it('debe retornar 400 si falta titulo', async () => {
@@ -233,7 +248,9 @@ describe('ComunicadosController (e2e)', () => {
 
   describe('DELETE /comunicados/:id', () => {
     it('debe retornar 401 sin token', async () => {
-      await request(app.getHttpServer()).delete('/comunicados/com-e2e-001').expect(401);
+      await request(app.getHttpServer())
+        .delete('/comunicados/com-e2e-001')
+        .expect(401);
     });
 
     it('debe retornar 200 al eliminar correctamente', async () => {

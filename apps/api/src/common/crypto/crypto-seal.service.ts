@@ -47,7 +47,9 @@ export interface IntegrityBreak {
 
 /** Tipo interno: transacción con todos los campos de integridad garantizados (no opcionales) */
 type SealedTransaccion = Transaccion &
-  Required<Pick<Transaccion, 'hash_integridad' | 'hash_previo' | 'numero_secuencia'>>;
+  Required<
+    Pick<Transaccion, 'hash_integridad' | 'hash_previo' | 'numero_secuencia'>
+  >;
 
 @Injectable()
 export class CryptoSealService {
@@ -70,7 +72,10 @@ export class CryptoSealService {
    * subsiguientes, lo que hace el fraude matemáticamente detectable.
    */
   computeTransactionHash(
-    data: Omit<Transaccion, 'hash_integridad' | 'hash_previo' | 'numero_secuencia'>,
+    data: Omit<
+      Transaccion,
+      'hash_integridad' | 'hash_previo' | 'numero_secuencia'
+    >,
     hashPrevio: string | null,
     numeroSecuencia: number,
   ): string {
@@ -114,7 +119,9 @@ export class CryptoSealService {
       .orderBy('numero_secuencia', 'desc')
       .limit(1);
 
-    const snapshot = transaction ? await transaction.get(query) : await query.get();
+    const snapshot = transaction
+      ? await transaction.get(query)
+      : await query.get();
 
     if (snapshot.empty) {
       return { lastHash: null, lastSequence: 0 };
@@ -141,11 +148,13 @@ export class CryptoSealService {
    * @param limit - Número máximo de transacciones a verificar (por defecto todas)
    */
   async verifyChainIntegrity(limit?: number): Promise<IntegrityReport> {
-    this.logger.log('Iniciando verificación de integridad de cadena criptográfica...');
+    this.logger.log(
+      'Iniciando verificación de integridad de cadena criptográfica...',
+    );
 
     let query = this.db
       .collection('transacciones')
-      .orderBy('numero_secuencia', 'asc') as admin.firestore.Query;
+      .orderBy('numero_secuencia', 'asc');
 
     if (limit) {
       query = query.limit(limit);

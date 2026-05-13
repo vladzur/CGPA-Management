@@ -94,7 +94,7 @@ describe('AuditService', () => {
       const mockCollection = { doc: jest.fn().mockReturnValue(mockRef) };
       mockFirestore.collection.mockReturnValue(mockCollection as any);
 
-      service.logActionWithTransactionOrBatch(batch as any, {
+      service.logActionWithTransactionOrBatch(batch, {
         usuario_id: 'uid-1',
         nombre_usuario: 'Admin',
         accion: 'CREAR_PROYECTO',
@@ -118,7 +118,7 @@ describe('AuditService', () => {
       const mockCollection = { doc: jest.fn().mockReturnValue(mockRef) };
       mockFirestore.collection.mockReturnValue(mockCollection as any);
 
-      service.logActionWithTransactionOrBatch(batch as any, {
+      service.logActionWithTransactionOrBatch(batch, {
         usuario_id: 'uid-1',
         nombre_usuario: 'Admin',
         accion: 'ELIMINAR',

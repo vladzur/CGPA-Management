@@ -5,11 +5,10 @@ import {
   Req,
   Res,
   UseGuards,
-  UsePipes,
   Header,
   StreamableFile,
 } from '@nestjs/common';
-import { Response } from 'express';
+import type { Response } from 'express';
 import { FirebaseAuthGuard } from '../common/guards/firebase-auth.guard';
 import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
 import { LibroBalanceService } from './libro-balance.service';

@@ -10,7 +10,15 @@ import { DocumentosService } from '../documentos/documentos.service';
 
 jest.mock('pdfkit', () => {
   const mockDoc = {
-    on: jest.fn(),
+    on: jest.fn((event: string, cb: (...args: unknown[]) => void) => {
+      if (event === 'data') {
+        cb(Buffer.from('fake-pdf-content'));
+      }
+      if (event === 'end') {
+        cb();
+      }
+      return mockDoc;
+    }),
     font: jest.fn().mockReturnThis(),
     fontSize: jest.fn().mockReturnThis(),
     text: jest.fn().mockReturnThis(),
@@ -89,26 +97,6 @@ function createMockDocumentosService(
   } as any as DocumentosService;
 }
 
-/**
- * Configura el mock de PDFKit para que el 'on' emita eventos data/end correctamente.
- * Permite que la Promise de generateBalanceBookPDF se resuelva.
- */
-function setupPdfMock() {
-  const PDFDocument = require('pdfkit').default;
-  const mockDoc = PDFDocument();
-  const mockBuffer = Buffer.from('fake-pdf-content');
-  const onMock = mockDoc.on as jest.Mock;
-  onMock.mockImplementation((event: string, cb: Function) => {
-    if (event === 'data') {
-      cb(mockBuffer);
-    }
-    if (event === 'end') {
-      cb();
-    }
-    return mockDoc;
-  });
-}
-
 describe('LibroBalanceService', () => {
   let service: LibroBalanceService;
   let mockDocsService: DocumentosService;
@@ -148,13 +136,13 @@ describe('LibroBalanceService', () => {
       rut_emisor: '12.345.678-9',
     };
 
-    beforeEach(() => {
-      setupPdfMock();
-    });
-
     it('debe generar un PDF para un período anual completo', async () => {
       const txs = [
-        buildTransaccion({ tipo: 'INGRESO', monto: 150000, numero_secuencia: 1 }),
+        buildTransaccion({
+          tipo: 'INGRESO',
+          monto: 150000,
+          numero_secuencia: 1,
+        }),
         buildTransaccion({
           tipo: 'EGRESO',
           monto: 50000,
@@ -249,7 +237,7 @@ describe('LibroBalanceService', () => {
       );
 
       expect(collectionStub).toHaveBeenCalledWith('transacciones');
-      const whereCalls = (mockCollection.where as jest.Mock).mock.calls;
+      const whereCalls = mockCollection.where.mock.calls;
       const proyectoFilter = whereCalls.find(
         (call: string[]) => call[0] === 'proyecto_id' && call[1] === '==',
       );
@@ -258,8 +246,16 @@ describe('LibroBalanceService', () => {
 
     it('debe calcular totales correctamente', async () => {
       const txs = [
-        buildTransaccion({ tipo: 'INGRESO', monto: 100000, numero_secuencia: 1 }),
-        buildTransaccion({ tipo: 'INGRESO', monto: 50000, numero_secuencia: 2 }),
+        buildTransaccion({
+          tipo: 'INGRESO',
+          monto: 100000,
+          numero_secuencia: 1,
+        }),
+        buildTransaccion({
+          tipo: 'INGRESO',
+          monto: 50000,
+          numero_secuencia: 2,
+        }),
         buildTransaccion({ tipo: 'EGRESO', monto: 30000, numero_secuencia: 3 }),
         buildTransaccion({ tipo: 'EGRESO', monto: 20000, numero_secuencia: 4 }),
       ];
@@ -386,7 +382,8 @@ describe('LibroBalanceService', () => {
           'Admin',
         );
 
-        const createCall = (mockDocsService.create as jest.Mock).mock.calls[0][0];
+        const createCall = (mockDocsService.create as jest.Mock).mock
+          .calls[0][0];
         expect(createCall.rut_emisor).toBe('98.765.432-1');
       } finally {
         process.env.CGPA_RUT = originalRut;
@@ -395,7 +392,11 @@ describe('LibroBalanceService', () => {
 
     it('debe generar PDF con hash y QR en el pie de página', async () => {
       const txs = [
-        buildTransaccion({ tipo: 'INGRESO', monto: 50000, numero_secuencia: 1 }),
+        buildTransaccion({
+          tipo: 'INGRESO',
+          monto: 50000,
+          numero_secuencia: 1,
+        }),
       ];
 
       const mockCollection = {

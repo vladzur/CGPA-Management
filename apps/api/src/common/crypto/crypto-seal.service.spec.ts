@@ -86,8 +86,16 @@ describe('CryptoSealService', () => {
 
     it('debe producir un hash diferente según el hash_previo (efecto cadena)', () => {
       const data = makeTransactionData();
-      const hashConPrevioNull = service.computeTransactionHash(data as any, null, 2);
-      const hashConPrevioReal = service.computeTransactionHash(data as any, 'abc123prev', 2);
+      const hashConPrevioNull = service.computeTransactionHash(
+        data as any,
+        null,
+        2,
+      );
+      const hashConPrevioReal = service.computeTransactionHash(
+        data as any,
+        'abc123prev',
+        2,
+      );
       expect(hashConPrevioNull).not.toBe(hashConPrevioReal);
     });
 
@@ -149,9 +157,33 @@ describe('CryptoSealService', () => {
 
       mockGet.mockResolvedValueOnce({
         docs: [
-          { id: 'tx1', data: () => ({ ...data1, numero_secuencia: 1, hash_previo: null, hash_integridad: hash1 }) },
-          { id: 'tx2', data: () => ({ ...data2, numero_secuencia: 2, hash_previo: hash1, hash_integridad: hash2 }) },
-          { id: 'tx3', data: () => ({ ...data3, numero_secuencia: 3, hash_previo: hash2, hash_integridad: hash3 }) },
+          {
+            id: 'tx1',
+            data: () => ({
+              ...data1,
+              numero_secuencia: 1,
+              hash_previo: null,
+              hash_integridad: hash1,
+            }),
+          },
+          {
+            id: 'tx2',
+            data: () => ({
+              ...data2,
+              numero_secuencia: 2,
+              hash_previo: hash1,
+              hash_integridad: hash2,
+            }),
+          },
+          {
+            id: 'tx3',
+            data: () => ({
+              ...data3,
+              numero_secuencia: 3,
+              hash_previo: hash2,
+              hash_integridad: hash3,
+            }),
+          },
         ],
       });
 
@@ -175,21 +207,34 @@ describe('CryptoSealService', () => {
 
       mockGet.mockResolvedValueOnce({
         docs: [
-          { id: 'tx1', data: () => ({ ...data1, numero_secuencia: 1, hash_previo: null, hash_integridad: hash1 }) },
-          { id: 'tx2', data: () => ({
-            ...data2Alterado,
-            numero_secuencia: 2,
-            hash_previo: hash1,
-            // El hash guardado corresponde al monto ORIGINAL (200), no al alterado (999999)
-            hash_integridad: hash2OriginalAntesDeLaAlteracion,
-          })},
+          {
+            id: 'tx1',
+            data: () => ({
+              ...data1,
+              numero_secuencia: 1,
+              hash_previo: null,
+              hash_integridad: hash1,
+            }),
+          },
+          {
+            id: 'tx2',
+            data: () => ({
+              ...data2Alterado,
+              numero_secuencia: 2,
+              hash_previo: hash1,
+              // El hash guardado corresponde al monto ORIGINAL (200), no al alterado (999999)
+              hash_integridad: hash2OriginalAntesDeLaAlteracion,
+            }),
+          },
         ],
       });
 
       const report = await service.verifyChainIntegrity();
       expect(report.valida).toBe(false);
       expect(report.rupturas.length).toBeGreaterThan(0);
-      const ruptura = report.rupturas.find((r: IntegrityBreak) => r.documento_id === 'tx2');
+      const ruptura = report.rupturas.find(
+        (r: IntegrityBreak) => r.documento_id === 'tx2',
+      );
       expect(ruptura).toBeDefined();
       expect(ruptura?.razon).toContain('Hash de integridad no coincide');
     });
@@ -203,19 +248,34 @@ describe('CryptoSealService', () => {
 
       mockGet.mockResolvedValueOnce({
         docs: [
-          { id: 'tx1', data: () => ({ ...data1, numero_secuencia: 1, hash_previo: null, hash_integridad: hash1 }) },
-          { id: 'tx2', data: () => ({
-            ...data2,
-            numero_secuencia: 2,
-            hash_previo: 'hash_incorrecto_manipulado', // <-- manipulado
-            hash_integridad: hash2,
-          })},
+          {
+            id: 'tx1',
+            data: () => ({
+              ...data1,
+              numero_secuencia: 1,
+              hash_previo: null,
+              hash_integridad: hash1,
+            }),
+          },
+          {
+            id: 'tx2',
+            data: () => ({
+              ...data2,
+              numero_secuencia: 2,
+              hash_previo: 'hash_incorrecto_manipulado', // <-- manipulado
+              hash_integridad: hash2,
+            }),
+          },
         ],
       });
 
       const report = await service.verifyChainIntegrity();
       expect(report.valida).toBe(false);
-      expect(report.rupturas.some((r: IntegrityBreak) => r.razon.includes('hash_previo no coincide'))).toBe(true);
+      expect(
+        report.rupturas.some((r: IntegrityBreak) =>
+          r.razon.includes('hash_previo no coincide'),
+        ),
+      ).toBe(true);
     });
   });
 });

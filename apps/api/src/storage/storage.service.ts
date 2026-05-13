@@ -5,11 +5,15 @@ import { v4 as uuidv4 } from 'uuid';
 @Injectable()
 export class StorageService {
   private get bucket() {
-    const bucketName = process.env.FIREBASE_STORAGE_BUCKET || 'cgpa-liceo-agb.appspot.com';
+    const bucketName =
+      process.env.FIREBASE_STORAGE_BUCKET || 'cgpa-liceo-agb.appspot.com';
     return admin.storage().bucket(bucketName);
   }
 
-  private async uploadFile(file: Express.Multer.File, folder: string): Promise<string> {
+  private async uploadFile(
+    file: Express.Multer.File,
+    folder: string,
+  ): Promise<string> {
     const extension = file.originalname.split('.').pop();
     const fileName = `${folder}/${uuidv4()}.${extension}`;
     const fileRef = this.bucket.file(fileName);
@@ -35,7 +39,9 @@ export class StorageService {
     try {
       return await this.uploadFile(file, 'comprobantes');
     } catch (error: any) {
-      throw new InternalServerErrorException('Error al subir el comprobante a Cloud Storage: ' + error.message);
+      throw new InternalServerErrorException(
+        'Error al subir el comprobante a Cloud Storage: ' + error.message,
+      );
     }
   }
 
@@ -46,7 +52,10 @@ export class StorageService {
     try {
       return await this.uploadFile(file, 'comunicados');
     } catch (error: any) {
-      throw new InternalServerErrorException('Error al subir la imagen del comunicado a Cloud Storage: ' + error.message);
+      throw new InternalServerErrorException(
+        'Error al subir la imagen del comunicado a Cloud Storage: ' +
+          error.message,
+      );
     }
   }
 }

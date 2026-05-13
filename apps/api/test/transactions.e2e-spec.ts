@@ -52,7 +52,9 @@ describe('TransactionsController (e2e)', () => {
       }),
     };
     mockStorageService = {
-      uploadReceipt: jest.fn().mockResolvedValue('https://storage.test/comprobante.jpg'),
+      uploadReceipt: jest
+        .fn()
+        .mockResolvedValue('https://storage.test/comprobante.jpg'),
     };
 
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -91,7 +93,9 @@ describe('TransactionsController (e2e)', () => {
     });
 
     it('debe retornar 401 con token inválido', async () => {
-      const mockAuth = { verifyIdToken: jest.fn().mockRejectedValue(new Error('Invalid')) };
+      const mockAuth = {
+        verifyIdToken: jest.fn().mockRejectedValue(new Error('Invalid')),
+      };
       (admin.auth as jest.Mock).mockReturnValue(mockAuth);
 
       await request(app.getHttpServer())
@@ -101,7 +105,9 @@ describe('TransactionsController (e2e)', () => {
         .expect(401);
 
       // Restaurar mock válido para el resto de tests
-      (admin.auth as jest.Mock).mockReturnValue({ verifyIdToken: jest.fn().mockResolvedValue(MOCK_USER) });
+      (admin.auth as jest.Mock).mockReturnValue({
+        verifyIdToken: jest.fn().mockResolvedValue(MOCK_USER),
+      });
     });
 
     it('debe retornar 400 si el payload es inválido (monto negativo)', async () => {
@@ -145,7 +151,10 @@ describe('TransactionsController (e2e)', () => {
         .field('fecha', new Date().toISOString())
         .field('categoria', 'Aportes')
         .field('descripcion', 'Test')
-        .attach('file', Buffer.from('fake-video'), { filename: 'video.mp4', contentType: 'video/mp4' })
+        .attach('file', Buffer.from('fake-video'), {
+          filename: 'video.mp4',
+          contentType: 'video/mp4',
+        })
         .expect(400);
     });
   });

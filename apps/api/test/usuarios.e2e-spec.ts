@@ -21,9 +21,27 @@ import * as admin from 'firebase-admin';
 
 // ─── Usuarios de prueba ────────────────────────────────────────────────────────
 
-const MOCK_ADMIN = { uid: 'uid-admin', email: 'admin@cgpa.cl', name: 'Admin', role: 'ADMIN', activo: true };
-const MOCK_EDITOR = { uid: 'uid-editor', email: 'editor@cgpa.cl', name: 'Editor', role: 'EDITOR', activo: true };
-const MOCK_NEW_USER = { uid: 'uid-new', email: 'nuevo@cgpa.cl', name: 'Nuevo', role: undefined, activo: undefined };
+const MOCK_ADMIN = {
+  uid: 'uid-admin',
+  email: 'admin@cgpa.cl',
+  name: 'Admin',
+  role: 'ADMIN',
+  activo: true,
+};
+const MOCK_EDITOR = {
+  uid: 'uid-editor',
+  email: 'editor@cgpa.cl',
+  name: 'Editor',
+  role: 'EDITOR',
+  activo: true,
+};
+const MOCK_NEW_USER = {
+  uid: 'uid-new',
+  email: 'nuevo@cgpa.cl',
+  name: 'Nuevo',
+  role: undefined,
+  activo: undefined,
+};
 
 describe('UsuariosController (e2e)', () => {
   let app: INestApplication;
@@ -40,9 +58,11 @@ describe('UsuariosController (e2e)', () => {
         message: 'Usuario registrado correctamente. Pendiente de aprobación.',
         data: { uid: MOCK_NEW_USER.uid, activo: false, rol: 'PENDIENTE' },
       }),
-      getPendingUsers: jest.fn().mockResolvedValue([
-        { id: 'uid-p1', uid: 'uid-p1', activo: false, rol: 'PENDIENTE' },
-      ]),
+      getPendingUsers: jest
+        .fn()
+        .mockResolvedValue([
+          { id: 'uid-p1', uid: 'uid-p1', activo: false, rol: 'PENDIENTE' },
+        ]),
       approveUser: jest.fn().mockResolvedValue({
         message: 'Usuario aprobado exitosamente',
         targetUid: 'uid-p1',
@@ -90,7 +110,9 @@ describe('UsuariosController (e2e)', () => {
     it('debe retornar 400 si el usuario ya está registrado', async () => {
       mockAuth.verifyIdToken.mockResolvedValue(MOCK_NEW_USER);
       (mockUsuariosService.registerUser as jest.Mock).mockRejectedValue(
-        new BadRequestException('El usuario ya está registrado en la base de datos'),
+        new BadRequestException(
+          'El usuario ya está registrado en la base de datos',
+        ),
       );
 
       await request(app.getHttpServer())
@@ -104,7 +126,9 @@ describe('UsuariosController (e2e)', () => {
 
   describe('GET /usuarios/pendientes', () => {
     it('debe retornar 401 sin token', async () => {
-      await request(app.getHttpServer()).get('/usuarios/pendientes').expect(401);
+      await request(app.getHttpServer())
+        .get('/usuarios/pendientes')
+        .expect(401);
     });
 
     it('debe retornar 403 si el usuario no es ADMIN', async () => {

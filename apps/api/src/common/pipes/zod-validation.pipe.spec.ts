@@ -36,12 +36,17 @@ describe('ZodValidationPipe', () => {
 
   it('debe lanzar BadRequestException con errores formateados cuando Zod falla', () => {
     const input = { nombre: '', monto: -5 };
-    expect(() => pipe.transform(input, { type: 'body' })).toThrow(BadRequestException);
+    expect(() => pipe.transform(input, { type: 'body' })).toThrow(
+      BadRequestException,
+    );
 
     try {
       pipe.transform(input, { type: 'body' });
     } catch (err: any) {
-      expect(err.response).toHaveProperty('message', 'Error de validación de datos');
+      expect(err.response).toHaveProperty(
+        'message',
+        'Error de validación de datos',
+      );
       expect(err.response).toHaveProperty('errors');
       expect(Array.isArray(err.response.errors)).toBe(true);
       // Debe incluir mensajes de error de Zod formateados
@@ -53,11 +58,15 @@ describe('ZodValidationPipe', () => {
   it('debe lanzar BadRequestException con mensaje genérico ante error no-Zod', () => {
     // Schema que lanza un error no-Zod
     const brokenSchema = {
-      parse: () => { throw new Error('Error inesperado'); },
+      parse: () => {
+        throw new Error('Error inesperado');
+      },
     };
     const brokenPipe = new ZodValidationPipe(brokenSchema as any);
 
-    expect(() => brokenPipe.transform({}, { type: 'body' })).toThrow(BadRequestException);
+    expect(() => brokenPipe.transform({}, { type: 'body' })).toThrow(
+      BadRequestException,
+    );
     try {
       brokenPipe.transform({}, { type: 'body' });
     } catch (err: any) {
@@ -67,6 +76,8 @@ describe('ZodValidationPipe', () => {
 
   it('debe lanzar BadRequestException cuando faltan campos requeridos', () => {
     const input = {}; // falta nombre y monto
-    expect(() => pipe.transform(input, { type: 'body' })).toThrow(BadRequestException);
+    expect(() => pipe.transform(input, { type: 'body' })).toThrow(
+      BadRequestException,
+    );
   });
 });

@@ -19,7 +19,13 @@ import { StorageService } from '../src/storage/storage.service';
 import { AuditService } from '../src/common/audit/audit.service';
 
 @Module({
-  controllers: [AppController, TransactionsController, ProyectosController, UsuariosController, ComunicadosController],
+  controllers: [
+    AppController,
+    TransactionsController,
+    ProyectosController,
+    UsuariosController,
+    ComunicadosController,
+  ],
   providers: [
     AppService,
     FinanzasService,

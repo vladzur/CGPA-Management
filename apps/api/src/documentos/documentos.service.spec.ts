@@ -1,5 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { NotFoundException, BadRequestException, InternalServerErrorException } from '@nestjs/common';
+import {
+  NotFoundException,
+  BadRequestException,
+  InternalServerErrorException,
+} from '@nestjs/common';
 import { DocumentosService } from './documentos.service';
 import { DocumentoIntegrityService } from './documento-integrity.service';
 import { AuditService } from '../common/audit/audit.service';
@@ -53,7 +57,11 @@ describe('DocumentosService', () => {
     } as any;
 
     mockIntegrityService = {
-      computeHash: jest.fn().mockReturnValue('a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2'),
+      computeHash: jest
+        .fn()
+        .mockReturnValue(
+          'a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2',
+        ),
       generateQR: jest.fn().mockResolvedValue('data:image/png;base64,mockQR'),
       generatePDFBuffer: jest.fn().mockResolvedValue(Buffer.from('mock-pdf')),
     } as any;
@@ -77,19 +85,19 @@ describe('DocumentosService', () => {
 
   function setupBatch() {
     const batch = createMockWriteBatch();
-    mockFirestore.batch.mockReturnValue(batch as any);
+    mockFirestore.batch.mockReturnValue(batch);
     return batch;
   }
 
   function setupTransaction() {
     const t = createMockTransaction();
-    mockFirestore.runTransaction.mockImplementation(async (fn: any) => fn(t));
+    mockFirestore.runTransaction.mockImplementation((fn: any) => fn(t));
     return t;
   }
 
   function setupCollection(docRef: any) {
     const mock: any = { doc: jest.fn().mockReturnValue(docRef) };
-    mockFirestore.collection.mockReturnValue(mock as any);
+    mockFirestore.collection.mockReturnValue(mock);
     return mock;
   }
 
@@ -120,7 +128,9 @@ describe('DocumentosService', () => {
       });
       expect(batch.set).toHaveBeenCalledWith(
         docRef,
-        expect.objectContaining({ creado_por: { uid: 'uid-admin', nombre: 'Admin' } }),
+        expect.objectContaining({
+          creado_por: { uid: 'uid-admin', nombre: 'Admin' },
+        }),
       );
       expect(batch.commit).toHaveBeenCalledTimes(1);
     });
@@ -140,9 +150,16 @@ describe('DocumentosService', () => {
       };
       await service.create(dto, 'uid-admin', 'Admin');
 
-      expect(mockAuditService.logActionWithTransactionOrBatch).toHaveBeenCalledTimes(1);
-      const [, entry] = (mockAuditService.logActionWithTransactionOrBatch as jest.Mock).mock.calls[0];
-      expect(entry).toMatchObject({ accion: 'CREAR_DOCUMENTO', coleccion: 'documentos' });
+      expect(
+        mockAuditService.logActionWithTransactionOrBatch,
+      ).toHaveBeenCalledTimes(1);
+      const [, entry] = (
+        mockAuditService.logActionWithTransactionOrBatch as jest.Mock
+      ).mock.calls[0];
+      expect(entry).toMatchObject({
+        accion: 'CREAR_DOCUMENTO',
+        coleccion: 'documentos',
+      });
     });
 
     it('debe permitir crear directamente en estado SELLADO si se especifica', async () => {
@@ -202,7 +219,11 @@ describe('DocumentosService', () => {
       const results = await service.findAll('BORRADOR');
 
       expect(results).toHaveLength(1);
-      expect(orderByQuery.where).toHaveBeenCalledWith('estado', '==', 'BORRADOR');
+      expect(orderByQuery.where).toHaveBeenCalledWith(
+        'estado',
+        '==',
+        'BORRADOR',
+      );
     });
   });
 
@@ -212,7 +233,7 @@ describe('DocumentosService', () => {
     it('debe retornar el documento si existe', async () => {
       const docRef = createMockDocumentRef('doc-find');
       const snap = createMockDocSnapshot('doc-find', makeDocumento());
-      docRef.get.mockResolvedValue(snap as any);
+      docRef.get.mockResolvedValue(snap);
       setupCollection(docRef);
 
       const result = await service.findOne('doc-find');
@@ -224,11 +245,13 @@ describe('DocumentosService', () => {
     it('debe lanzar NotFoundException si no existe', async () => {
       const docRef = createMockDocumentRef('doc-missing');
       const missingSnap = createMissingDocSnapshot();
-      docRef.get.mockResolvedValue(missingSnap as any);
+      docRef.get.mockResolvedValue(missingSnap);
       const collection = { doc: jest.fn().mockReturnValue(docRef) };
       mockFirestore.collection.mockReturnValue(collection as any);
 
-      await expect(service.findOne('doc-missing')).rejects.toThrow(NotFoundException);
+      await expect(service.findOne('doc-missing')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
@@ -250,7 +273,9 @@ describe('DocumentosService', () => {
       };
       mockFirestore.collection.mockReturnValue(collection as any);
 
-      const result = await service.findByVerificationUuid('550e8400-e29b-41d4-a716-446655440000');
+      const result = await service.findByVerificationUuid(
+        '550e8400-e29b-41d4-a716-446655440000',
+      );
 
       expect(result.valido).toBe(true);
       expect(result.titulo).toBe('Balance Anual 2026');
@@ -278,7 +303,7 @@ describe('DocumentosService', () => {
     it('debe actualizar campos de un documento BORRADOR', async () => {
       const docRef = createMockDocumentRef('doc-upd');
       const snap = createMockDocSnapshot('doc-upd', makeDocumento());
-      docRef.get.mockResolvedValue(snap as any);
+      docRef.get.mockResolvedValue(snap);
       setupCollection(docRef);
       const batch = setupBatch();
 
@@ -299,14 +324,23 @@ describe('DocumentosService', () => {
     it('debe registrar auditoria con payload_anterior al actualizar', async () => {
       const docRef = createMockDocumentRef('doc-aud-upd');
       const snap = createMockDocSnapshot('doc-aud-upd', makeDocumento());
-      docRef.get.mockResolvedValue(snap as any);
+      docRef.get.mockResolvedValue(snap);
       setupCollection(docRef);
       setupBatch();
 
-      await service.update('doc-aud-upd', { descripcion: 'Nueva desc' }, 'uid', 'Admin');
+      await service.update(
+        'doc-aud-upd',
+        { descripcion: 'Nueva desc' },
+        'uid',
+        'Admin',
+      );
 
-      expect(mockAuditService.logActionWithTransactionOrBatch).toHaveBeenCalledTimes(1);
-      const [, entry] = (mockAuditService.logActionWithTransactionOrBatch as jest.Mock).mock.calls[0];
+      expect(
+        mockAuditService.logActionWithTransactionOrBatch,
+      ).toHaveBeenCalledTimes(1);
+      const [, entry] = (
+        mockAuditService.logActionWithTransactionOrBatch as jest.Mock
+      ).mock.calls[0];
       expect(entry).toMatchObject({
         accion: 'ACTUALIZAR_DOCUMENTO',
         coleccion: 'documentos',
@@ -317,8 +351,11 @@ describe('DocumentosService', () => {
 
     it('debe lanzar BadRequestException si el documento ya fue sellado', async () => {
       const docRef = createMockDocumentRef('doc-sealed');
-      const snap = createMockDocSnapshot('doc-sealed', makeDocumento({ estado: 'SELLADO' }));
-      docRef.get.mockResolvedValue(snap as any);
+      const snap = createMockDocSnapshot(
+        'doc-sealed',
+        makeDocumento({ estado: 'SELLADO' }),
+      );
+      docRef.get.mockResolvedValue(snap);
       setupCollection(docRef);
 
       await expect(
@@ -329,7 +366,7 @@ describe('DocumentosService', () => {
     it('debe lanzar NotFoundException si no existe', async () => {
       const docRef = createMockDocumentRef('doc-nx');
       const missingSnap = createMissingDocSnapshot();
-      docRef.get.mockResolvedValue(missingSnap as any);
+      docRef.get.mockResolvedValue(missingSnap);
       const collection = { doc: jest.fn().mockReturnValue(docRef) };
       mockFirestore.collection.mockReturnValue(collection as any);
 
@@ -349,9 +386,12 @@ describe('DocumentosService', () => {
 
     it('debe sellar un documento BORRADOR con hash, QR y UUID', async () => {
       const docRef = createMockDocumentRef('doc-to-seal');
-      const snap = createMockDocSnapshot('doc-to-seal', makeDocumento({ estado: 'BORRADOR' }));
+      const snap = createMockDocSnapshot(
+        'doc-to-seal',
+        makeDocumento({ estado: 'BORRADOR' }),
+      );
       const t = setupTransaction();
-      t.get.mockResolvedValue(snap as any);
+      t.get.mockResolvedValue(snap);
       setupCollection(docRef);
 
       const result = await service.sellar('doc-to-seal', 'uid-admin', 'Admin');
@@ -381,9 +421,12 @@ describe('DocumentosService', () => {
     it('debe usar URL por defecto si VERIFICATION_BASE_URL no esta configurada', async () => {
       delete process.env.VERIFICATION_BASE_URL;
       const docRef = createMockDocumentRef('doc-default-url');
-      const snap = createMockDocSnapshot('doc-default-url', makeDocumento({ estado: 'BORRADOR' }));
+      const snap = createMockDocSnapshot(
+        'doc-default-url',
+        makeDocumento({ estado: 'BORRADOR' }),
+      );
       const t = setupTransaction();
-      t.get.mockResolvedValue(snap as any);
+      t.get.mockResolvedValue(snap);
       setupCollection(docRef);
 
       await service.sellar('doc-default-url', 'uid-admin', 'Admin');
@@ -395,9 +438,12 @@ describe('DocumentosService', () => {
 
     it('debe lanzar BadRequestException si el documento ya fue sellado', async () => {
       const docRef = createMockDocumentRef('doc-already');
-      const snap = createMockDocSnapshot('doc-already', makeDocumento({ estado: 'SELLADO' }));
+      const snap = createMockDocSnapshot(
+        'doc-already',
+        makeDocumento({ estado: 'SELLADO' }),
+      );
       const t = setupTransaction();
-      t.get.mockResolvedValue(snap as any);
+      t.get.mockResolvedValue(snap);
       setupCollection(docRef);
 
       await expect(
@@ -409,7 +455,7 @@ describe('DocumentosService', () => {
       const docRef = createMockDocumentRef('doc-missing-seal');
       const missingSnap = createMissingDocSnapshot();
       const t = setupTransaction();
-      t.get.mockResolvedValue(missingSnap as any);
+      t.get.mockResolvedValue(missingSnap);
       setupCollection(docRef);
 
       await expect(
@@ -420,9 +466,12 @@ describe('DocumentosService', () => {
     it('debe lanzar InternalServerErrorException si DOCUMENT_SALT no esta configurado', async () => {
       delete process.env.DOCUMENT_SALT;
       const docRef = createMockDocumentRef('doc-no-salt');
-      const snap = createMockDocSnapshot('doc-no-salt', makeDocumento({ estado: 'BORRADOR' }));
+      const snap = createMockDocSnapshot(
+        'doc-no-salt',
+        makeDocumento({ estado: 'BORRADOR' }),
+      );
       const t = setupTransaction();
-      t.get.mockResolvedValue(snap as any);
+      t.get.mockResolvedValue(snap);
       setupCollection(docRef);
 
       await expect(
@@ -436,12 +485,15 @@ describe('DocumentosService', () => {
   describe('generatePdf', () => {
     it('debe retornar Buffer para documento SELLADO', async () => {
       const docRef = createMockDocumentRef('doc-pdf');
-      const snap = createMockDocSnapshot('doc-pdf', makeDocumento({
-        estado: 'SELLADO',
-        hash_integridad: 'abc12345def67890',
-        qr_base64: 'data:image/png;base64,qrFake',
-      }));
-      docRef.get.mockResolvedValue(snap as any);
+      const snap = createMockDocSnapshot(
+        'doc-pdf',
+        makeDocumento({
+          estado: 'SELLADO',
+          hash_integridad: 'abc12345def67890',
+          qr_base64: 'data:image/png;base64,qrFake',
+        }),
+      );
+      docRef.get.mockResolvedValue(snap);
       setupCollection(docRef);
 
       const result = await service.generatePdf('doc-pdf');
@@ -452,21 +504,28 @@ describe('DocumentosService', () => {
 
     it('debe lanzar BadRequestException para documento BORRADOR', async () => {
       const docRef = createMockDocumentRef('doc-borrador');
-      const snap = createMockDocSnapshot('doc-borrador', makeDocumento({ estado: 'BORRADOR' }));
-      docRef.get.mockResolvedValue(snap as any);
+      const snap = createMockDocSnapshot(
+        'doc-borrador',
+        makeDocumento({ estado: 'BORRADOR' }),
+      );
+      docRef.get.mockResolvedValue(snap);
       setupCollection(docRef);
 
-      await expect(service.generatePdf('doc-borrador')).rejects.toThrow(BadRequestException);
+      await expect(service.generatePdf('doc-borrador')).rejects.toThrow(
+        BadRequestException,
+      );
     });
 
     it('debe lanzar NotFoundException si no existe', async () => {
       const docRef = createMockDocumentRef('doc-missing-pdf');
       const missingSnap = createMissingDocSnapshot();
-      docRef.get.mockResolvedValue(missingSnap as any);
+      docRef.get.mockResolvedValue(missingSnap);
       const collection = { doc: jest.fn().mockReturnValue(docRef) };
       mockFirestore.collection.mockReturnValue(collection as any);
 
-      await expect(service.generatePdf('doc-missing-pdf')).rejects.toThrow(NotFoundException);
+      await expect(service.generatePdf('doc-missing-pdf')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
@@ -476,7 +535,7 @@ describe('DocumentosService', () => {
     it('debe eliminar el documento y registrar auditoria', async () => {
       const docRef = createMockDocumentRef('doc-del');
       const snap = createMockDocSnapshot('doc-del', makeDocumento());
-      docRef.get.mockResolvedValue(snap as any);
+      docRef.get.mockResolvedValue(snap);
       setupCollection(docRef);
       const batch = setupBatch();
 
@@ -484,19 +543,27 @@ describe('DocumentosService', () => {
 
       expect(result).toEqual({ message: 'Documento eliminado correctamente' });
       expect(batch.delete).toHaveBeenCalledWith(docRef);
-      expect(mockAuditService.logActionWithTransactionOrBatch).toHaveBeenCalledTimes(1);
-      const [, entry] = (mockAuditService.logActionWithTransactionOrBatch as jest.Mock).mock.calls[0];
+      expect(
+        mockAuditService.logActionWithTransactionOrBatch,
+      ).toHaveBeenCalledTimes(1);
+      const [, entry] = (
+        mockAuditService.logActionWithTransactionOrBatch as jest.Mock
+      ).mock.calls[0];
       expect(entry).toMatchObject({ accion: 'ELIMINAR_DOCUMENTO' });
     });
 
     it('no debe fallar si el documento ya no existe', async () => {
       const docRef = createMockDocumentRef('doc-inexistente');
       const missingSnap = createMissingDocSnapshot();
-      docRef.get.mockResolvedValue(missingSnap as any);
+      docRef.get.mockResolvedValue(missingSnap);
       setupCollection(docRef);
       const batch = setupBatch();
 
-      const result = await service.remove('doc-inexistente', 'uid-admin', 'Admin');
+      const result = await service.remove(
+        'doc-inexistente',
+        'uid-admin',
+        'Admin',
+      );
 
       expect(result).toEqual({ message: 'Documento eliminado correctamente' });
       expect(batch.delete).toHaveBeenCalledWith(docRef);
@@ -507,8 +574,20 @@ describe('DocumentosService', () => {
 
   describe('computeHash', () => {
     it('debe producir el mismo hash para los mismos datos y salt', () => {
-      const hash1 = mockIntegrityService.computeHash('id1', '2026-03-15T00:00:00.000Z', 1500000, '12.345.678-9', 'salt');
-      const hash2 = mockIntegrityService.computeHash('id1', '2026-03-15T00:00:00.000Z', 1500000, '12.345.678-9', 'salt');
+      const hash1 = mockIntegrityService.computeHash(
+        'id1',
+        '2026-03-15T00:00:00.000Z',
+        1500000,
+        '12.345.678-9',
+        'salt',
+      );
+      const hash2 = mockIntegrityService.computeHash(
+        'id1',
+        '2026-03-15T00:00:00.000Z',
+        1500000,
+        '12.345.678-9',
+        'salt',
+      );
       expect(hash1).toBe(hash2);
     });
   });

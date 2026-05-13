@@ -67,7 +67,7 @@ describe('ProyectosService', () => {
 
   function setupBatch() {
     const batch = createMockWriteBatch();
-    mockFirestore.batch.mockReturnValue(batch as any);
+    mockFirestore.batch.mockReturnValue(batch);
     return batch;
   }
 
@@ -76,7 +76,7 @@ describe('ProyectosService', () => {
     if (getResult !== undefined) {
       mock.get = jest.fn().mockResolvedValue(getResult);
     }
-    mockFirestore.collection.mockReturnValue(mock as any);
+    mockFirestore.collection.mockReturnValue(mock);
     return mock;
   }
 
@@ -105,7 +105,10 @@ describe('ProyectosService', () => {
       });
       expect(batch.set).toHaveBeenCalledWith(
         docRef,
-        expect.objectContaining({ estado: 'PLANIFICACION', monto_ejecutado: 0 }),
+        expect.objectContaining({
+          estado: 'PLANIFICACION',
+          monto_ejecutado: 0,
+        }),
       );
       expect(batch.commit).toHaveBeenCalledTimes(1);
     });
@@ -115,12 +118,24 @@ describe('ProyectosService', () => {
       setupCollection(docRef);
       setupBatch();
 
-      const dto = { nombre: 'P', descripcion: 'D', presupuesto_estimado: 1000, responsable: { uid: 'u', nombre: 'N' } };
+      const dto = {
+        nombre: 'P',
+        descripcion: 'D',
+        presupuesto_estimado: 1000,
+        responsable: { uid: 'u', nombre: 'N' },
+      };
       await service.create(dto, 'uid-admin', 'Admin');
 
-      expect(mockAuditService.logActionWithTransactionOrBatch).toHaveBeenCalledTimes(1);
-      const [, entry] = (mockAuditService.logActionWithTransactionOrBatch as jest.Mock).mock.calls[0];
-      expect(entry).toMatchObject({ accion: 'CREAR_PROYECTO', coleccion: 'proyectos' });
+      expect(
+        mockAuditService.logActionWithTransactionOrBatch,
+      ).toHaveBeenCalledTimes(1);
+      const [, entry] = (
+        mockAuditService.logActionWithTransactionOrBatch as jest.Mock
+      ).mock.calls[0];
+      expect(entry).toMatchObject({
+        accion: 'CREAR_PROYECTO',
+        coleccion: 'proyectos',
+      });
     });
   });
 
@@ -128,7 +143,10 @@ describe('ProyectosService', () => {
 
   describe('findAll', () => {
     it('debe retornar lista de proyectos con avance_financiero calculado', async () => {
-      const proyectoData = makeProyecto({ presupuesto_estimado: 100000, monto_ejecutado: 40000 });
+      const proyectoData = makeProyecto({
+        presupuesto_estimado: 100000,
+        monto_ejecutado: 40000,
+      });
       const querySnap = createQuerySnapshot([{ id: 'p1', data: proyectoData }]);
       const collection = { get: jest.fn().mockResolvedValue(querySnap) };
       mockFirestore.collection.mockReturnValue(collection as any);
@@ -140,7 +158,10 @@ describe('ProyectosService', () => {
     });
 
     it('avance_financiero debe ser 0 si presupuesto_estimado es 0', async () => {
-      const proyectoData = makeProyecto({ presupuesto_estimado: 0, monto_ejecutado: 0 });
+      const proyectoData = makeProyecto({
+        presupuesto_estimado: 0,
+        monto_ejecutado: 0,
+      });
       const querySnap = createQuerySnapshot([{ id: 'p2', data: proyectoData }]);
       const collection = { get: jest.fn().mockResolvedValue(querySnap) };
       mockFirestore.collection.mockReturnValue(collection as any);
@@ -150,7 +171,10 @@ describe('ProyectosService', () => {
     });
 
     it('avance_financiero debe ser máximo 100 (capped)', async () => {
-      const proyectoData = makeProyecto({ presupuesto_estimado: 10000, monto_ejecutado: 99999 });
+      const proyectoData = makeProyecto({
+        presupuesto_estimado: 10000,
+        monto_ejecutado: 99999,
+      });
       const querySnap = createQuerySnapshot([{ id: 'p3', data: proyectoData }]);
       const collection = { get: jest.fn().mockResolvedValue(querySnap) };
       mockFirestore.collection.mockReturnValue(collection as any);
@@ -165,8 +189,11 @@ describe('ProyectosService', () => {
   describe('findOne', () => {
     it('debe retornar el proyecto con avance_financiero calculado', async () => {
       const docRef = createMockDocumentRef('proj-find');
-      const snap = createMockDocSnapshot('proj-find', makeProyecto({ presupuesto_estimado: 200000, monto_ejecutado: 100000 }));
-      docRef.get.mockResolvedValue(snap as any);
+      const snap = createMockDocSnapshot(
+        'proj-find',
+        makeProyecto({ presupuesto_estimado: 200000, monto_ejecutado: 100000 }),
+      );
+      docRef.get.mockResolvedValue(snap);
       setupCollection(docRef);
 
       const result = await service.findOne('proj-find');
@@ -178,11 +205,13 @@ describe('ProyectosService', () => {
     it('debe lanzar NotFoundException si el proyecto no existe', async () => {
       const docRef = createMockDocumentRef('proj-missing');
       const missingSnap = createMissingDocSnapshot();
-      docRef.get.mockResolvedValue(missingSnap as any);
+      docRef.get.mockResolvedValue(missingSnap);
       const collection = { doc: jest.fn().mockReturnValue(docRef) };
       mockFirestore.collection.mockReturnValue(collection as any);
 
-      await expect(service.findOne('proj-missing')).rejects.toThrow(NotFoundException);
+      await expect(service.findOne('proj-missing')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
@@ -191,8 +220,11 @@ describe('ProyectosService', () => {
   describe('update', () => {
     it('debe actualizar los campos y recalcular avance_financiero si cambia el presupuesto', async () => {
       const docRef = createMockDocumentRef('proj-upd');
-      const snap = createMockDocSnapshot('proj-upd', makeProyecto({ monto_ejecutado: 50000 }));
-      docRef.get.mockResolvedValue(snap as any);
+      const snap = createMockDocSnapshot(
+        'proj-upd',
+        makeProyecto({ monto_ejecutado: 50000 }),
+      );
+      docRef.get.mockResolvedValue(snap);
       setupCollection(docRef);
       const batch = setupBatch();
 
@@ -203,7 +235,10 @@ describe('ProyectosService', () => {
         'Admin',
       );
 
-      expect(result).toMatchObject({ id: 'proj-upd', presupuesto_estimado: 200000 });
+      expect(result).toMatchObject({
+        id: 'proj-upd',
+        presupuesto_estimado: 200000,
+      });
       expect(result.avance_financiero).toBe(25); // 50000/200000 * 100
       expect(batch.update).toHaveBeenCalledWith(
         docRef,
@@ -214,7 +249,7 @@ describe('ProyectosService', () => {
     it('debe lanzar NotFoundException si el proyecto no existe', async () => {
       const docRef = createMockDocumentRef('proj-nx');
       const missingSnap = createMissingDocSnapshot();
-      docRef.get.mockResolvedValue(missingSnap as any);
+      docRef.get.mockResolvedValue(missingSnap);
       const collection = { doc: jest.fn().mockReturnValue(docRef) };
       mockFirestore.collection.mockReturnValue(collection as any);
 
@@ -228,7 +263,9 @@ describe('ProyectosService', () => {
 
   describe('remove', () => {
     it('debe lanzar BadRequestException si el proyecto tiene transacciones asociadas', async () => {
-      const nonEmptyQuerySnap = createQuerySnapshot([{ id: 'txn-1', data: { monto: 1000 } }]);
+      const nonEmptyQuerySnap = createQuerySnapshot([
+        { id: 'txn-1', data: { monto: 1000 } },
+      ]);
 
       // Primero: collection('transacciones').where().limit().get() → non-empty
       const txnCollection = {
@@ -251,7 +288,7 @@ describe('ProyectosService', () => {
       const docRef = createMockDocumentRef('proj-del-ok');
       const emptyQuerySnap = createEmptyQuerySnapshot();
       const snap = createMockDocSnapshot('proj-del-ok', makeProyecto());
-      docRef.get.mockResolvedValue(snap as any);
+      docRef.get.mockResolvedValue(snap);
 
       const txnCollection = {
         where: jest.fn().mockReturnThis(),
@@ -270,8 +307,12 @@ describe('ProyectosService', () => {
 
       expect(result).toEqual({ message: 'Proyecto eliminado correctamente' });
       expect(batch.delete).toHaveBeenCalledWith(docRef);
-      expect(mockAuditService.logActionWithTransactionOrBatch).toHaveBeenCalledTimes(1);
-      const [, entry] = (mockAuditService.logActionWithTransactionOrBatch as jest.Mock).mock.calls[0];
+      expect(
+        mockAuditService.logActionWithTransactionOrBatch,
+      ).toHaveBeenCalledTimes(1);
+      const [, entry] = (
+        mockAuditService.logActionWithTransactionOrBatch as jest.Mock
+      ).mock.calls[0];
       expect(entry).toMatchObject({ accion: 'ELIMINAR_PROYECTO' });
     });
   });

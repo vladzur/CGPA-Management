@@ -16,7 +16,8 @@ import * as admin from 'firebase-admin';
 
 export type MockFirestore = DeepMockProxy<admin.firestore.Firestore>;
 export type MockAuth = DeepMockProxy<admin.auth.Auth>;
-export type MockDocumentReference = DeepMockProxy<admin.firestore.DocumentReference>;
+export type MockDocumentReference =
+  DeepMockProxy<admin.firestore.DocumentReference>;
 export type MockWriteBatch = DeepMockProxy<admin.firestore.WriteBatch>;
 export type MockTransaction = DeepMockProxy<admin.firestore.Transaction>;
 
@@ -34,7 +35,9 @@ export function createMockAuth(): MockAuth {
 
 // ─── DocumentReference Builder ────────────────────────────────────────────────
 
-export function createMockDocumentRef(id = 'mock-doc-id'): MockDocumentReference {
+export function createMockDocumentRef(
+  id = 'mock-doc-id',
+): MockDocumentReference {
   const ref = mockDeep<admin.firestore.DocumentReference>();
   Object.defineProperty(ref, 'id', { value: id, configurable: true });
   return ref;
@@ -44,7 +47,10 @@ export function createMockDocumentRef(id = 'mock-doc-id'): MockDocumentReference
 // Usamos plain objects porque .exists es una propiedad booleana en Firestore real,
 // NO una función. mockDeep la convertiría en función, rompiendo `if (doc.exists)`.
 
-export function createMockDocSnapshot(id: string, data: Record<string, any>): any {
+export function createMockDocSnapshot(
+  id: string,
+  data: Record<string, any>,
+): any {
   return {
     exists: true,
     id,
@@ -93,7 +99,9 @@ export function createEmptyQuerySnapshot(): any {
   };
 }
 
-export function createQuerySnapshot(docs: Array<{ id: string; data: Record<string, any> }>): any {
+export function createQuerySnapshot(
+  docs: Array<{ id: string; data: Record<string, any> }>,
+): any {
   const mockDocs = docs.map(({ id, data }) => createMockDocSnapshot(id, data));
   return {
     empty: docs.length === 0,

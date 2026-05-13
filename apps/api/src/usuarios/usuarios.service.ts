@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import * as admin from 'firebase-admin';
 import { AuditService } from '../common/audit/audit.service';
 
@@ -15,7 +19,9 @@ export class UsuariosService {
     const doc = await userRef.get();
 
     if (doc.exists) {
-      throw new BadRequestException('El usuario ya está registrado en la base de datos');
+      throw new BadRequestException(
+        'El usuario ya está registrado en la base de datos',
+      );
     }
 
     const newUserData = {
@@ -30,25 +36,39 @@ export class UsuariosService {
     await userRef.set(newUserData);
 
     // We can also set custom claims to reflect pending status
-    await admin.auth().setCustomUserClaims(uid, { role: 'PENDIENTE', activo: false });
+    await admin
+      .auth()
+      .setCustomUserClaims(uid, { role: 'PENDIENTE', activo: false });
 
-    return { message: 'Usuario registrado correctamente. Pendiente de aprobación.', data: newUserData };
+    return {
+      message: 'Usuario registrado correctamente. Pendiente de aprobación.',
+      data: newUserData,
+    };
   }
 
   async getPendingUsers() {
-    const snapshot = await this.db.collection('usuarios')
+    const snapshot = await this.db
+      .collection('usuarios')
       .where('activo', '==', false)
       .get();
-    
-    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+    return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
   }
 
   async getAllUsers() {
-    const snapshot = await this.db.collection('usuarios').orderBy('fecha_registro', 'desc').get();
-    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    const snapshot = await this.db
+      .collection('usuarios')
+      .orderBy('fecha_registro', 'desc')
+      .get();
+    return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
   }
 
-  async approveUser(targetUid: string, role: string, adminUid: string, adminName: string) {
+  async approveUser(
+    targetUid: string,
+    role: string,
+    adminUid: string,
+    adminName: string,
+  ) {
     const userRef = this.db.collection('usuarios').doc(targetUid);
     const doc = await userRef.get();
 
@@ -82,12 +102,19 @@ export class UsuariosService {
     await batch.commit();
 
     // Actualizar Custom Claims en Firebase Auth
-    await admin.auth().setCustomUserClaims(targetUid, { role: role, activo: true });
+    await admin
+      .auth()
+      .setCustomUserClaims(targetUid, { role: role, activo: true });
 
     return { message: 'Usuario aprobado exitosamente', targetUid, role };
   }
 
-  async updateUserRole(targetUid: string, newRole: string, adminUid: string, adminName: string) {
+  async updateUserRole(
+    targetUid: string,
+    newRole: string,
+    adminUid: string,
+    adminName: string,
+  ) {
     const userRef = this.db.collection('usuarios').doc(targetUid);
     const doc = await userRef.get();
 
@@ -117,7 +144,11 @@ export class UsuariosService {
       activo: userData.activo,
     });
 
-    return { message: 'Rol actualizado exitosamente', targetUid, role: newRole };
+    return {
+      message: 'Rol actualizado exitosamente',
+      targetUid,
+      role: newRole,
+    };
   }
 
   async deactivateUser(targetUid: string, adminUid: string, adminName: string) {
@@ -152,7 +183,9 @@ export class UsuariosService {
     });
 
     return {
-      message: newState ? 'Usuario activado exitosamente' : 'Usuario desactivado exitosamente',
+      message: newState
+        ? 'Usuario activado exitosamente'
+        : 'Usuario desactivado exitosamente',
       targetUid,
       activo: newState,
     };

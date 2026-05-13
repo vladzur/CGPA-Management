@@ -46,7 +46,9 @@ describe('FirebaseAuthGuard', () => {
 
   it('debe lanzar UnauthorizedException si verifyIdToken rechaza el token', async () => {
     mockAuth.verifyIdToken.mockRejectedValue(new Error('Token expirado'));
-    const ctx = createMockExecutionContext({ authorization: 'Bearer invalid-token' });
+    const ctx = createMockExecutionContext({
+      authorization: 'Bearer invalid-token',
+    });
     await expect(guard.canActivate(ctx)).rejects.toThrow(UnauthorizedException);
   });
 
@@ -60,7 +62,10 @@ describe('FirebaseAuthGuard', () => {
     };
     mockAuth.verifyIdToken.mockResolvedValue(decodedToken as any);
 
-    const request = { headers: { authorization: 'Bearer valid-token' }, user: undefined as any };
+    const request = {
+      headers: { authorization: 'Bearer valid-token' },
+      user: undefined as any,
+    };
     const ctx = {
       switchToHttp: () => ({ getRequest: () => request }),
     } as unknown as ExecutionContext;
@@ -87,7 +92,10 @@ describe('FirebaseAuthGuard', () => {
     };
     mockAuth.verifyIdToken.mockResolvedValue(decodedToken as any);
 
-    const request = { headers: { authorization: 'Bearer valid-token-2' }, user: undefined as any };
+    const request = {
+      headers: { authorization: 'Bearer valid-token-2' },
+      user: undefined as any,
+    };
     const ctx = {
       switchToHttp: () => ({ getRequest: () => request }),
     } as unknown as ExecutionContext;

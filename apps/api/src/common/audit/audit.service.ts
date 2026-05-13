@@ -23,15 +23,15 @@ export class AuditService {
    */
   async logAction(entry: AuditLogEntry) {
     const auditRef = this.db.collection('auditoria').doc();
-    
+
     // Convert undefined to null for Firestore or remove them
     const dataToSave = {
       ...entry,
       timestamp: admin.firestore.FieldValue.serverTimestamp(),
     };
-    
+
     // Remove undefined values
-    Object.keys(dataToSave).forEach(key => {
+    Object.keys(dataToSave).forEach((key) => {
       if (dataToSave[key as keyof typeof dataToSave] === undefined) {
         delete dataToSave[key as keyof typeof dataToSave];
       }
@@ -46,16 +46,16 @@ export class AuditService {
    */
   logActionWithTransactionOrBatch(
     tOrBatch: admin.firestore.Transaction | admin.firestore.WriteBatch,
-    entry: AuditLogEntry
+    entry: AuditLogEntry,
   ) {
     const auditRef = this.db.collection('auditoria').doc();
-    
+
     const dataToSave = {
       ...entry,
       timestamp: admin.firestore.FieldValue.serverTimestamp(),
     };
 
-    Object.keys(dataToSave).forEach(key => {
+    Object.keys(dataToSave).forEach((key) => {
       if (dataToSave[key as keyof typeof dataToSave] === undefined) {
         delete dataToSave[key as keyof typeof dataToSave];
       }

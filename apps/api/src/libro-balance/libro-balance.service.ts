@@ -1,8 +1,4 @@
-import {
-  Injectable,
-  BadRequestException,
-  InternalServerErrorException,
-} from '@nestjs/common';
+import { Injectable, BadRequestException } from '@nestjs/common';
 import * as admin from 'firebase-admin';
 import PDFDocument from 'pdfkit';
 import { Transaccion, Documento } from '@cgpa/shared';
@@ -48,7 +44,11 @@ export class LibroBalanceService {
   ): Promise<Buffer> {
     const { start, end } = this.resolveDateRange(dto);
 
-    const transacciones = await this.queryTransactions(start, end, dto.proyecto_id);
+    const transacciones = await this.queryTransactions(
+      start,
+      end,
+      dto.proyecto_id,
+    );
 
     if (transacciones.length === 0) {
       throw new BadRequestException(
@@ -59,8 +59,7 @@ export class LibroBalanceService {
     const totals = this.calculateTotals(transacciones);
 
     const periodoLabel = this.buildPeriodoLabel(dto, start, end);
-    const titulo =
-      dto.titulo || `Libro de Balance - Período ${dto.periodo}`;
+    const titulo = dto.titulo || `Libro de Balance - Período ${dto.periodo}`;
     const descripcion = this.buildDescripcion(periodoLabel, totals);
 
     // Crear Documento como BORRADOR
@@ -89,7 +88,7 @@ export class LibroBalanceService {
 
     // Generar PDF enriquecido con tabla de transacciones
     return this.generateBalanceBookPDF(
-      documento as Documento,
+      documento as unknown as Documento,
       transacciones,
       totals,
       periodoLabel,
@@ -103,7 +102,7 @@ export class LibroBalanceService {
     start: Date;
     end: Date;
   } {
-    const year = parseInt(dto.periodo, 10);
+    const year = Number.parseInt(dto.periodo, 10);
 
     const start = dto.fecha_inicio
       ? new Date(dto.fecha_inicio)
@@ -142,7 +141,7 @@ export class LibroBalanceService {
     const snapshot = await query.get();
     return snapshot.docs.map(
       (doc: admin.firestore.DocumentSnapshot) =>
-        ({ id: doc.id, ...doc.data() }) as Transaccion,
+        ({ id: doc.id, ...doc.data() }) as unknown as Transaccion,
     );
   }
 
@@ -281,11 +280,9 @@ export class LibroBalanceService {
         .text(`RUT Emisor: ${documento.rut_emisor}`, { align: 'center' });
 
       if (transacciones[0]?.proyecto_id) {
-        doc
-          .fontSize(9)
-          .text(`Proyecto: ${transacciones[0].proyecto_id}`, {
-            align: 'center',
-          });
+        doc.fontSize(9).text(`Proyecto: ${transacciones[0].proyecto_id}`, {
+          align: 'center',
+        });
       }
 
       doc.moveDown(1);
@@ -293,9 +290,7 @@ export class LibroBalanceService {
       // ─── FUNCIÓN AUX: dibujar cabecera de tabla ──────────────────
       const drawTableHeader = (y: number): number => {
         // Fondo de cabecera
-        doc
-          .rect(marginLeft, y, usableWidth, rowHeight)
-          .fill('#e0e0e0');
+        doc.rect(marginLeft, y, usableWidth, rowHeight).fill('#e0e0e0');
 
         doc.fillColor('#000000').fontSize(8).font('Helvetica-Bold');
 
@@ -332,9 +327,7 @@ export class LibroBalanceService {
 
         // Fondo alternado
         if (i % 2 === 0) {
-          doc
-            .rect(marginLeft, y, usableWidth, rowHeight)
-            .fill('#f8f8f8');
+          doc.rect(marginLeft, y, usableWidth, rowHeight).fill('#f8f8f8');
         }
 
         doc.fillColor('#000000').fontSize(8).font('Helvetica');
