@@ -7,5 +7,6 @@ import { DocumentoIntegrityModule } from './documento-integrity.module';
   imports: [DocumentoIntegrityModule],
   controllers: [DocumentosController],
   providers: [DocumentosService],
+  exports: [DocumentosService],
 })
 export class DocumentosModule {}

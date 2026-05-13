@@ -1,9 +1,23 @@
-import { Controller, Post, Get, Query, Body, UsePipes, Req, UseInterceptors, UploadedFile, BadRequestException, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Get,
+  Query,
+  Body,
+  Req,
+  UseInterceptors,
+  UploadedFile,
+  BadRequestException,
+  UseGuards,
+} from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { FinanzasService } from '../finanzas/finanzas.service';
 import { StorageService } from '../storage/storage.service';
 import { CryptoSealService } from '../common/crypto/crypto-seal.service';
-import { CreateTransactionDto, CreateTransactionSchema } from './dto/create-transaction.dto';
+import {
+  CreateTransactionDto,
+  CreateTransactionSchema,
+} from './dto/create-transaction.dto';
 import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
 import { FirebaseAuthGuard } from '../common/guards/firebase-auth.guard';
 
@@ -17,11 +31,14 @@ export class TransactionsController {
 
   @Post()
   @UseGuards(FirebaseAuthGuard)
-  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 5 * 1024 * 1024 } }))
+  @UseInterceptors(
+    FileInterceptor('file', { limits: { fileSize: 5 * 1024 * 1024 } }),
+  )
   async createTransaction(
-    @Body(new ZodValidationPipe(CreateTransactionSchema)) createTransactionDto: CreateTransactionDto, 
+    @Body(new ZodValidationPipe(CreateTransactionSchema))
+    createTransactionDto: CreateTransactionDto,
     @UploadedFile() file: Express.Multer.File,
-    @Req() req: any
+    @Req() req: any,
   ) {
     const userUid = req.user.uid;
     const userName = req.user.name;
@@ -29,7 +46,10 @@ export class TransactionsController {
     // 1. Si hay un comprobante, lo subimos a Storage primero
     if (file) {
       // Pequeña validación de mimetype por seguridad
-      if (!file.mimetype.startsWith('image/') && file.mimetype !== 'application/pdf') {
+      if (
+        !file.mimetype.startsWith('image/') &&
+        file.mimetype !== 'application/pdf'
+      ) {
         throw new BadRequestException('El archivo debe ser una imagen o PDF');
       }
       const url = await this.storageService.uploadReceipt(file);
@@ -69,4 +89,3 @@ export class TransactionsController {
     };
   }
 }
-

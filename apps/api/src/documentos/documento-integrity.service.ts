@@ -51,31 +51,37 @@ export class DocumentoIntegrityService {
       doc.on('end', () => resolve(Buffer.concat(chunks)));
       doc.on('error', reject);
 
-      const fechaEmision = documento.fecha_emision instanceof Date
-        ? documento.fecha_emision
-        : new Date((documento.fecha_emision as any).toDate?.() ?? documento.fecha_emision);
+      const fechaEmision =
+        documento.fecha_emision instanceof Date
+          ? documento.fecha_emision
+          : new Date(
+              (documento.fecha_emision as any).toDate?.() ??
+                documento.fecha_emision,
+            );
 
       // Título
       doc.fontSize(18).text(documento.titulo, { align: 'center' });
       doc.moveDown(1);
 
       // Datos del documento
-      doc.fontSize(12).text(`Monto: $${documento.monto.toLocaleString('es-CL')}`, { continued: false });
+      doc
+        .fontSize(12)
+        .text(`Monto: $${documento.monto.toLocaleString('es-CL')}`, {
+          continued: false,
+        });
       doc.text(`Fecha de Emisión: ${fechaEmision.toLocaleDateString('es-CL')}`);
       doc.text(`RUT Emisor: ${documento.rut_emisor}`);
       doc.moveDown(0.5);
       doc.text(`Descripción: ${documento.descripcion}`);
 
       // Hash en pie de página (izquierda)
-      const hashShort = documento.hash_integridad?.substring(0, 8) ?? '--------';
+      const hashShort =
+        documento.hash_integridad?.substring(0, 8) ?? '--------';
       const bottomY = doc.page.height - 50;
 
-      doc.fontSize(8).text(
-        `Hash: ${hashShort}`,
-        50,
-        bottomY,
-        { width: 300, align: 'left' },
-      );
+      doc
+        .fontSize(8)
+        .text(`Hash: ${hashShort}`, 50, bottomY, { width: 300, align: 'left' });
 
       // QR en pie de página (derecha) — 2x2 cm ≈ 56px a 72dpi
       if (documento.qr_base64) {

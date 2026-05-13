@@ -1,5 +1,9 @@
 import { z } from 'zod';
-import { EstadoComunicadoSchema, EstadoComunicado, TimestampSchema } from '@cgpa/shared';
+import {
+  EstadoComunicadoSchema,
+  EstadoComunicado,
+  TimestampSchema,
+} from '@cgpa/shared';
 
 export class UpdateComunicadoDto {
   titulo?: string;

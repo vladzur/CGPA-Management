@@ -11,11 +11,19 @@ import { CryptoSealModule } from './common/crypto/crypto-seal.module';
 import { UsuariosModule } from './usuarios/usuarios.module';
 import { ComunicadosModule } from './comunicados/comunicados.module';
 import { DocumentosModule } from './documentos/documentos.module';
+import { LibroBalanceModule } from './libro-balance/libro-balance.module';
 
 @Module({
-  imports: [ProyectosModule, AuditModule, CryptoSealModule, UsuariosModule, ComunicadosModule, DocumentosModule],
+  imports: [
+    ProyectosModule,
+    AuditModule,
+    CryptoSealModule,
+    UsuariosModule,
+    ComunicadosModule,
+    DocumentosModule,
+    LibroBalanceModule,
+  ],
   controllers: [AppController, TransactionsController],
   providers: [AppService, FinanzasService, StorageService],
 })
 export class AppModule {}
-

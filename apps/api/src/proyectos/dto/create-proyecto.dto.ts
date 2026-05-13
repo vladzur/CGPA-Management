@@ -1,10 +1,13 @@
 import { ProyectoSchema, Proyecto } from '@cgpa/shared';
 
-export class CreateProyectoDto implements Omit<Proyecto, 'estado' | 'monto_recaudado' | 'monto_ejecutado' | 'fecha_inicio'> {
+export class CreateProyectoDto implements Omit<
+  Proyecto,
+  'estado' | 'monto_recaudado' | 'monto_ejecutado' | 'fecha_inicio'
+> {
   nombre: string;
   descripcion: string;
   presupuesto_estimado: number;
-  responsable: { uid: string; nombre: string; };
+  responsable: { uid: string; nombre: string };
 }
 
 export const CreateProyectoSchema = ProyectoSchema.omit({

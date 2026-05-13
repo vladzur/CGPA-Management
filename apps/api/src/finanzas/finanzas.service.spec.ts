@@ -60,7 +60,9 @@ describe('FinanzasService', () => {
     } as any;
 
     mockCryptoSealService = {
-      computeTransactionHash: jest.fn().mockReturnValue('fake-seal-hash-abc123'),
+      computeTransactionHash: jest
+        .fn()
+        .mockReturnValue('fake-seal-hash-abc123'),
       getLastTransactionSnapshot: jest.fn().mockResolvedValue({
         lastHash: null,
         lastSequence: 0,
@@ -89,9 +91,12 @@ describe('FinanzasService', () => {
     const proyectoRef = createMockDocumentRef('proj-001');
 
     const collectionMock = jest.fn((name: string) => {
-      if (name === 'transacciones') return { doc: jest.fn().mockReturnValue(transRef) };
-      if (name === 'configuracion') return { doc: jest.fn().mockReturnValue(instRef) };
-      if (name === 'proyectos') return { doc: jest.fn().mockReturnValue(proyectoRef) };
+      if (name === 'transacciones')
+        return { doc: jest.fn().mockReturnValue(transRef) };
+      if (name === 'configuracion')
+        return { doc: jest.fn().mockReturnValue(instRef) };
+      if (name === 'proyectos')
+        return { doc: jest.fn().mockReturnValue(proyectoRef) };
       return { doc: jest.fn() };
     });
 
@@ -107,11 +112,11 @@ describe('FinanzasService', () => {
     const mockTxn = createMockTransaction();
     // Cada llamada a t.get() retorna el siguiente snapshot en la lista
     let callCount = 0;
-    mockTxn.get.mockImplementation(async () => {
+    mockTxn.get.mockImplementation(() => {
       return snapshots[callCount++] ?? snapshots[snapshots.length - 1];
     });
 
-    mockFirestore.runTransaction.mockImplementation(async (fn: (t: any) => any) => {
+    mockFirestore.runTransaction.mockImplementation((fn: (t: any) => any) => {
       return fn(mockTxn);
     });
 
@@ -126,7 +131,11 @@ describe('FinanzasService', () => {
       const instSnap = createMockDocSnapshot('liceo_agb', INST_DATA);
       const mockTxn = setupTransactionRun([instSnap]);
 
-      const result = await service.createTransaction(BASE_DTO, 'uid-1', 'Tester');
+      const result = await service.createTransaction(
+        BASE_DTO,
+        'uid-1',
+        'Tester',
+      );
 
       expect(result.nuevo_saldo_total).toBe(105000); // 100000 + 5000
       expect(result.proyecto_actualizado).toBeNull();
@@ -156,8 +165,16 @@ describe('FinanzasService', () => {
       const proyectoSnap = createMockDocSnapshot('proj-001', PROYECTO_DATA);
       const mockTxn = setupTransactionRun([instSnap, proyectoSnap]);
 
-      const egresoDto = { ...BASE_DTO, tipo: 'EGRESO' as const, proyecto_id: 'proj-001' };
-      const result = await service.createTransaction(egresoDto, 'uid-1', 'Tester');
+      const egresoDto = {
+        ...BASE_DTO,
+        tipo: 'EGRESO' as const,
+        proyecto_id: 'proj-001',
+      };
+      const result = await service.createTransaction(
+        egresoDto,
+        'uid-1',
+        'Tester',
+      );
 
       expect(result.nuevo_saldo_total).toBe(95000); // 100000 - 5000
       expect(result.proyecto_actualizado).toEqual({
@@ -223,7 +240,11 @@ describe('FinanzasService', () => {
       const missingProyecto = createMissingDocSnapshot();
       setupTransactionRun([instSnap, missingProyecto]);
 
-      const dto = { ...BASE_DTO, tipo: 'EGRESO' as const, proyecto_id: 'proj-inexistente' };
+      const dto = {
+        ...BASE_DTO,
+        tipo: 'EGRESO' as const,
+        proyecto_id: 'proj-inexistente',
+      };
       await expect(
         service.createTransaction(dto, 'uid-1', 'Tester'),
       ).rejects.toThrow(NotFoundException);
@@ -231,7 +252,9 @@ describe('FinanzasService', () => {
 
     it('debe lanzar ConflictException ante errores genéricos de Firestore', async () => {
       setupCollectionRefs();
-      mockFirestore.runTransaction.mockRejectedValue(new Error('Firestore contention'));
+      mockFirestore.runTransaction.mockRejectedValue(
+        new Error('Firestore contention'),
+      );
 
       await expect(
         service.createTransaction(BASE_DTO, 'uid-1', 'Tester'),
@@ -247,10 +270,18 @@ describe('FinanzasService', () => {
       const instSnap = createMockDocSnapshot('liceo_agb', INST_DATA);
       setupTransactionRun([instSnap]);
 
-      await service.createTransaction(BASE_DTO, 'uid-registra', 'Nombre Registra');
+      await service.createTransaction(
+        BASE_DTO,
+        'uid-registra',
+        'Nombre Registra',
+      );
 
-      expect(mockAuditService.logActionWithTransactionOrBatch).toHaveBeenCalledTimes(1);
-      const [, entry] = (mockAuditService.logActionWithTransactionOrBatch as jest.Mock).mock.calls[0];
+      expect(
+        mockAuditService.logActionWithTransactionOrBatch,
+      ).toHaveBeenCalledTimes(1);
+      const [, entry] = (
+        mockAuditService.logActionWithTransactionOrBatch as jest.Mock
+      ).mock.calls[0];
       expect(entry).toMatchObject({
         usuario_id: 'uid-registra',
         nombre_usuario: 'Nombre Registra',

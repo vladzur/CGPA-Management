@@ -4,6 +4,6 @@ import { AuditService } from './audit.service';
 @Global()
 @Module({
   providers: [AuditService],
-  exports: [AuditService]
+  exports: [AuditService],
 })
 export class AuditModule {}

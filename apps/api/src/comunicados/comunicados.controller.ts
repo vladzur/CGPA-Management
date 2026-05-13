@@ -1,12 +1,29 @@
 import {
-  Controller, Get, Post, Body, Patch, Param, Delete, Query,
-  UseGuards, Req, UseInterceptors, UploadedFile, BadRequestException,
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  Query,
+  UseGuards,
+  Req,
+  UseInterceptors,
+  UploadedFile,
+  BadRequestException,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ComunicadosService } from './comunicados.service';
 import { StorageService } from '../storage/storage.service';
-import { CreateComunicadoDto, CreateComunicadoSchema } from './dto/create-comunicado.dto';
-import { UpdateComunicadoDto, UpdateComunicadoSchema } from './dto/update-comunicado.dto';
+import {
+  CreateComunicadoDto,
+  CreateComunicadoSchema,
+} from './dto/create-comunicado.dto';
+import {
+  UpdateComunicadoDto,
+  UpdateComunicadoSchema,
+} from './dto/update-comunicado.dto';
 import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
 import { FirebaseAuthGuard } from '../common/guards/firebase-auth.guard';
 
@@ -37,20 +54,31 @@ export class ComunicadosController {
   @Post()
   @UseGuards(FirebaseAuthGuard)
   create(
-    @Body(new ZodValidationPipe(CreateComunicadoSchema)) createComunicadoDto: CreateComunicadoDto,
+    @Body(new ZodValidationPipe(CreateComunicadoSchema))
+    createComunicadoDto: CreateComunicadoDto,
     @Req() req: any,
   ) {
-    return this.comunicadosService.create(createComunicadoDto, req.user.uid, req.user.name);
+    return this.comunicadosService.create(
+      createComunicadoDto,
+      req.user.uid,
+      req.user.name,
+    );
   }
 
   @Patch(':id')
   @UseGuards(FirebaseAuthGuard)
   update(
     @Param('id') id: string,
-    @Body(new ZodValidationPipe(UpdateComunicadoSchema)) updateComunicadoDto: UpdateComunicadoDto,
+    @Body(new ZodValidationPipe(UpdateComunicadoSchema))
+    updateComunicadoDto: UpdateComunicadoDto,
     @Req() req: any,
   ) {
-    return this.comunicadosService.update(id, updateComunicadoDto, req.user.uid, req.user.name);
+    return this.comunicadosService.update(
+      id,
+      updateComunicadoDto,
+      req.user.uid,
+      req.user.name,
+    );
   }
 
   @Delete(':id')
@@ -61,7 +89,9 @@ export class ComunicadosController {
 
   @Post('imagenes')
   @UseGuards(FirebaseAuthGuard)
-  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 5 * 1024 * 1024 } }))
+  @UseInterceptors(
+    FileInterceptor('file', { limits: { fileSize: 5 * 1024 * 1024 } }),
+  )
   async uploadImage(@UploadedFile() file: Express.Multer.File) {
     if (!file) {
       throw new BadRequestException('No se proporciono ninguna imagen');

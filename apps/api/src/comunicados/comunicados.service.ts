@@ -13,7 +13,11 @@ export class ComunicadosService {
     return admin.firestore();
   }
 
-  async create(createComunicadoDto: CreateComunicadoDto, userUid: string, userName: string) {
+  async create(
+    createComunicadoDto: CreateComunicadoDto,
+    userUid: string,
+    userName: string,
+  ) {
     const comunicadoRef = this.db.collection('comunicados').doc();
 
     const nuevoComunicado: Comunicado = {
@@ -39,14 +43,16 @@ export class ComunicadosService {
   }
 
   async findAll(estado?: string) {
-    let query: admin.firestore.Query = this.db.collection('comunicados').orderBy('fecha_creacion', 'desc');
+    let query: admin.firestore.Query = this.db
+      .collection('comunicados')
+      .orderBy('fecha_creacion', 'desc');
 
     if (estado) {
       query = query.where('estado', '==', estado);
     }
 
     const snapshot = await query.get();
-    return snapshot.docs.map(doc => ({
+    return snapshot.docs.map((doc) => ({
       id: doc.id,
       ...doc.data(),
     }));
@@ -62,7 +68,7 @@ export class ComunicadosService {
       .orderBy('fecha_publicacion', 'desc')
       .get();
 
-    return snapshot.docs.map(doc => ({
+    return snapshot.docs.map((doc) => ({
       id: doc.id,
       ...doc.data(),
     }));
@@ -76,7 +82,12 @@ export class ComunicadosService {
     return { id: doc.id, ...doc.data() };
   }
 
-  async update(id: string, updateComunicadoDto: UpdateComunicadoDto, userUid: string, userName: string) {
+  async update(
+    id: string,
+    updateComunicadoDto: UpdateComunicadoDto,
+    userUid: string,
+    userName: string,
+  ) {
     const docRef = this.db.collection('comunicados').doc(id);
     const doc = await docRef.get();
 

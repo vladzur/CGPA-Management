@@ -26,13 +26,17 @@ export class DocumentosService {
   private getSalt(): string {
     const salt = process.env.DOCUMENT_SALT;
     if (!salt) {
-      throw new InternalServerErrorException('DOCUMENT_SALT no está configurado en el servidor');
+      throw new InternalServerErrorException(
+        'DOCUMENT_SALT no está configurado en el servidor',
+      );
     }
     return salt;
   }
 
   private getBaseUrl(): string {
-    return process.env.VERIFICATION_BASE_URL || 'https://cgpa-liceo-agb.web.app';
+    return (
+      process.env.VERIFICATION_BASE_URL || 'https://cgpa-liceo-agb.web.app'
+    );
   }
 
   async create(dto: CreateDocumentoDto, userUid: string, userName: string) {
@@ -70,7 +74,7 @@ export class DocumentosService {
     }
 
     const snapshot = await query.get();
-    return snapshot.docs.map(doc => ({
+    return snapshot.docs.map((doc) => ({
       id: doc.id,
       ...doc.data(),
     }));
@@ -94,7 +98,8 @@ export class DocumentosService {
     if (snapshot.empty) {
       return {
         valido: false,
-        mensaje: 'Documento no encontrado. El UUID no corresponde a ningún documento emitido por el CGPA.',
+        mensaje:
+          'Documento no encontrado. El UUID no corresponde a ningún documento emitido por el CGPA.',
       };
     }
 
@@ -115,7 +120,12 @@ export class DocumentosService {
     };
   }
 
-  async update(id: string, dto: UpdateDocumentoDto, userUid: string, userName: string) {
+  async update(
+    id: string,
+    dto: UpdateDocumentoDto,
+    userUid: string,
+    userName: string,
+  ) {
     const docRef = this.db.collection('documentos').doc(id);
     const doc = await docRef.get();
 
@@ -126,7 +136,9 @@ export class DocumentosService {
     const existing = doc.data() as Documento;
 
     if (existing.estado === 'SELLADO') {
-      throw new BadRequestException('No se puede modificar un documento que ya fue sellado');
+      throw new BadRequestException(
+        'No se puede modificar un documento que ya fue sellado',
+      );
     }
 
     const updates: any = {
@@ -166,14 +178,19 @@ export class DocumentosService {
       const data = doc.data() as Documento;
 
       if (data.estado === 'SELLADO') {
-        throw new BadRequestException('El documento ya fue sellado anteriormente');
+        throw new BadRequestException(
+          'El documento ya fue sellado anteriormente',
+        );
       }
 
       const uuid = uuidv4();
 
-      const fechaEmision = data.fecha_emision instanceof Date
-        ? data.fecha_emision
-        : new Date((data.fecha_emision as any).toDate?.() ?? data.fecha_emision);
+      const fechaEmision =
+        data.fecha_emision instanceof Date
+          ? data.fecha_emision
+          : new Date(
+              (data.fecha_emision as any).toDate?.() ?? data.fecha_emision,
+            );
 
       const hash = this.integrityService.computeHash(
         id,
@@ -223,7 +240,9 @@ export class DocumentosService {
     const data = doc.data() as Documento;
 
     if (data.estado !== 'SELLADO') {
-      throw new BadRequestException('Solo se puede generar PDF de documentos sellados');
+      throw new BadRequestException(
+        'Solo se puede generar PDF de documentos sellados',
+      );
     }
 
     return this.integrityService.generatePDFBuffer(data);

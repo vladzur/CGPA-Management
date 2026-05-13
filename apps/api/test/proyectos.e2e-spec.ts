@@ -43,7 +43,9 @@ describe('ProyectosController (e2e)', () => {
   let mockProyectosService: jest.Mocked<Partial<ProyectosService>>;
 
   beforeAll(async () => {
-    const mockAuth = { verifyIdToken: jest.fn().mockResolvedValue(MOCK_ADMIN_USER) };
+    const mockAuth = {
+      verifyIdToken: jest.fn().mockResolvedValue(MOCK_ADMIN_USER),
+    };
     (admin.auth as jest.Mock).mockReturnValue(mockAuth);
     (admin.firestore as jest.Mock).mockReturnValue({ collection: jest.fn() });
 
@@ -51,8 +53,12 @@ describe('ProyectosController (e2e)', () => {
       create: jest.fn().mockResolvedValue(MOCK_PROYECTO),
       findAll: jest.fn().mockResolvedValue([MOCK_PROYECTO]),
       findOne: jest.fn().mockResolvedValue(MOCK_PROYECTO),
-      update: jest.fn().mockResolvedValue({ id: 'proj-e2e-001', nombre: 'Actualizado' }),
-      remove: jest.fn().mockResolvedValue({ message: 'Proyecto eliminado correctamente' }),
+      update: jest
+        .fn()
+        .mockResolvedValue({ id: 'proj-e2e-001', nombre: 'Actualizado' }),
+      remove: jest
+        .fn()
+        .mockResolvedValue({ message: 'Proyecto eliminado correctamente' }),
     };
 
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -102,7 +108,9 @@ describe('ProyectosController (e2e)', () => {
     });
 
     it('debe retornar 200 con el proyecto si existe', async () => {
-      (mockProyectosService.findOne as jest.Mock).mockResolvedValue(MOCK_PROYECTO);
+      (mockProyectosService.findOne as jest.Mock).mockResolvedValue(
+        MOCK_PROYECTO,
+      );
 
       const { body } = await request(app.getHttpServer())
         .get('/proyectos/proj-e2e-001')
@@ -124,7 +132,10 @@ describe('ProyectosController (e2e)', () => {
     };
 
     it('debe retornar 401 sin token', async () => {
-      await request(app.getHttpServer()).post('/proyectos').send(validBody).expect(401);
+      await request(app.getHttpServer())
+        .post('/proyectos')
+        .send(validBody)
+        .expect(401);
     });
 
     it('debe retornar 400 si falta el campo nombre', async () => {
@@ -186,12 +197,16 @@ describe('ProyectosController (e2e)', () => {
 
   describe('DELETE /proyectos/:id', () => {
     it('debe retornar 401 sin token', async () => {
-      await request(app.getHttpServer()).delete('/proyectos/proj-e2e-001').expect(401);
+      await request(app.getHttpServer())
+        .delete('/proyectos/proj-e2e-001')
+        .expect(401);
     });
 
     it('debe retornar 400 si el proyecto tiene transacciones asociadas', async () => {
       (mockProyectosService.remove as jest.Mock).mockRejectedValue(
-        new BadRequestException('No se puede eliminar el proyecto porque tiene transacciones asociadas.'),
+        new BadRequestException(
+          'No se puede eliminar el proyecto porque tiene transacciones asociadas.',
+        ),
       );
 
       await request(app.getHttpServer())

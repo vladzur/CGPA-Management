@@ -7,16 +7,20 @@ import {
   Param,
   Delete,
   Query,
-  Res,
   UseGuards,
   Req,
   Header,
   StreamableFile,
 } from '@nestjs/common';
-import type { Response } from 'express';
 import { DocumentosService } from './documentos.service';
-import { CreateDocumentoDto, CreateDocumentoSchema } from './dto/create-documento.dto';
-import { UpdateDocumentoDto, UpdateDocumentoSchema } from './dto/update-documento.dto';
+import {
+  CreateDocumentoDto,
+  CreateDocumentoSchema,
+} from './dto/create-documento.dto';
+import {
+  UpdateDocumentoDto,
+  UpdateDocumentoSchema,
+} from './dto/update-documento.dto';
 import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
 import { FirebaseAuthGuard } from '../common/guards/firebase-auth.guard';
 
@@ -74,10 +78,7 @@ export class DocumentosController {
   @UseGuards(FirebaseAuthGuard)
   @Header('Content-Type', 'application/pdf')
   @Header('Content-Disposition', 'attachment; filename="documento.pdf"')
-  async generatePdf(
-    @Param('id') id: string,
-    @Res({ passthrough: true }) res: Response,
-  ) {
+  async generatePdf(@Param('id') id: string) {
     const buffer = await this.service.generatePdf(id);
     return new StreamableFile(buffer);
   }

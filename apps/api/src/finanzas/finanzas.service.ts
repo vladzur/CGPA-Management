@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+} from '@nestjs/common';
 import * as admin from 'firebase-admin';
 import { Transaccion, Proyecto } from '@cgpa/shared';
 import { CreateTransactionDto } from '../transactions/dto/create-transaction.dto';
@@ -12,7 +16,7 @@ export class FinanzasService {
     private readonly cryptoSealService: CryptoSealService,
   ) {}
 
-  // En producción, esto idealmente se inyecta mediante un proveedor de Firebase, 
+  // En producción, esto idealmente se inyecta mediante un proveedor de Firebase,
   // pero para este ejemplo lo accedemos directamente.
   private get db() {
     return admin.firestore();
@@ -26,13 +30,17 @@ export class FinanzasService {
    * la inmutabilidad e intrazabilidad del registro. Cualquier alteración posterior
    * al documento romperá la cadena y será detectable mediante la verificación de integridad.
    */
-  async createTransaction(dto: CreateTransactionDto, userUid: string, userName: string) {
+  async createTransaction(
+    dto: CreateTransactionDto,
+    userUid: string,
+    userName: string,
+  ) {
     const db = this.db;
-    
+
     // Referencias a los documentos involucrados
     const transaccionRef = db.collection('transacciones').doc();
     const instRef = db.collection('configuracion').doc('liceo_agb');
-    
+
     let proyectoRef: admin.firestore.DocumentReference | null = null;
     if (dto.proyecto_id) {
       proyectoRef = db.collection('proyectos').doc(dto.proyecto_id);
@@ -44,14 +52,18 @@ export class FinanzasService {
         // --- 1. LECTURAS (Deben preceder a cualquier operación de escritura) ---
         const instDoc = await t.get(instRef);
         if (!instDoc.exists) {
-          throw new NotFoundException('El documento de configuración global (liceo_agb) no existe.');
+          throw new NotFoundException(
+            'El documento de configuración global (liceo_agb) no existe.',
+          );
         }
-        
+
         let proyectoDoc: admin.firestore.DocumentSnapshot | null = null;
         if (proyectoRef) {
           proyectoDoc = await t.get(proyectoRef);
           if (!proyectoDoc.exists) {
-            throw new NotFoundException(`El proyecto especificado (${dto.proyecto_id}) no existe.`);
+            throw new NotFoundException(
+              `El proyecto especificado (${dto.proyecto_id}) no existe.`,
+            );
           }
         }
 
@@ -59,13 +71,14 @@ export class FinanzasService {
         // Se realiza DENTRO de la transacción para garantizar que el snapshot de
         // la cadena es consistente con el estado actual de la base de datos
         // (evita race conditions si dos transacciones se crean simultáneamente).
-        const { lastHash, lastSequence } = await this.cryptoSealService.getLastTransactionSnapshot(t);
+        const { lastHash, lastSequence } =
+          await this.cryptoSealService.getLastTransactionSnapshot(t);
         const nextSequence = lastSequence + 1;
 
         // --- 2. CÁLCULOS EN MEMORIA ---
         const institucionData = instDoc.data();
         let nuevoSaldoTotal = institucionData?.saldo_total || 0;
-        
+
         if (dto.tipo === 'INGRESO') {
           nuevoSaldoTotal += dto.monto;
         } else if (dto.tipo === 'EGRESO') {
@@ -75,13 +88,14 @@ export class FinanzasService {
         let nuevoMontoEjecutadoProyecto = 0;
         if (proyectoDoc && dto.tipo === 'EGRESO') {
           const proyectoData = proyectoDoc.data() as Proyecto;
-          nuevoMontoEjecutadoProyecto = (proyectoData.monto_ejecutado || 0) + dto.monto;
+          nuevoMontoEjecutadoProyecto =
+            (proyectoData.monto_ejecutado || 0) + dto.monto;
         }
 
         // Construimos el documento base respetando el esquema de Zod
         const transaccionBase: Transaccion = {
           ...dto,
-          estado: 'CONCILIADO', 
+          estado: 'CONCILIADO',
           registrado_por: { uid: userUid, nombre: userName },
           // Aseguramos que la fecha es el Timestamp actual del servidor de Firestore
           fecha: admin.firestore.Timestamp.now() as any,
@@ -108,7 +122,7 @@ export class FinanzasService {
         // --- 3. ESCRITURAS (solo .set() — NUNCA .update() ni .delete() en transacciones) ---
         // Append-Only: cada transacción financiera es un registro permanente e inmutable.
         t.set(transaccionRef, nuevaTransaccion);
-        
+
         t.update(instRef, {
           saldo_total: nuevoSaldoTotal,
           ultima_actualizacion: admin.firestore.FieldValue.serverTimestamp(),
@@ -137,20 +151,24 @@ export class FinanzasService {
           numero_secuencia: nextSequence,
           hash_integridad: hashIntegridad,
           nuevo_saldo_total: nuevoSaldoTotal,
-          proyecto_actualizado: proyectoRef && dto.tipo === 'EGRESO' ? {
-            id: proyectoRef.id,
-            nuevo_monto_ejecutado: nuevoMontoEjecutadoProyecto,
-          } : null
+          proyecto_actualizado:
+            proyectoRef && dto.tipo === 'EGRESO'
+              ? {
+                  id: proyectoRef.id,
+                  nuevo_monto_ejecutado: nuevoMontoEjecutadoProyecto,
+                }
+              : null,
         };
       });
-      
     } catch (error: any) {
       if (error instanceof NotFoundException) {
         throw error;
       }
       // Los fallos de contención (exceso de retries) en transacciones lanzan errores genéricos.
-      throw new ConflictException('Fallo de consistencia al procesar la transacción financiera: ' + error.message);
+      throw new ConflictException(
+        'Fallo de consistencia al procesar la transacción financiera: ' +
+          error.message,
+      );
     }
   }
 }
-

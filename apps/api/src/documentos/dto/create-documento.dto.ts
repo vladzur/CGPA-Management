@@ -1,6 +1,16 @@
 import { DocumentoSchema, Documento } from '@cgpa/shared';
 
-export class CreateDocumentoDto implements Omit<Documento, 'fecha_creacion' | 'creado_por' | 'fecha_actualizacion' | 'hash_integridad' | 'uuid_verificacion' | 'qr_base64' | 'salt' | 'fecha_sellado'> {
+export class CreateDocumentoDto implements Omit<
+  Documento,
+  | 'fecha_creacion'
+  | 'creado_por'
+  | 'fecha_actualizacion'
+  | 'hash_integridad'
+  | 'uuid_verificacion'
+  | 'qr_base64'
+  | 'salt'
+  | 'fecha_sellado'
+> {
   titulo: string;
   descripcion: string;
   monto: number;

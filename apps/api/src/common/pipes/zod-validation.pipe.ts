@@ -1,4 +1,4 @@
-import { PipeTransform, ArgumentMetadata, BadRequestException, Injectable } from '@nestjs/common';
+import { PipeTransform, BadRequestException, Injectable } from '@nestjs/common';
 import { ZodError } from 'zod';
 import type { ZodSchema } from 'zod';
 
@@ -6,7 +6,7 @@ import type { ZodSchema } from 'zod';
 export class ZodValidationPipe implements PipeTransform {
   constructor(private schema: ZodSchema) {}
 
-  transform(value: any, metadata: ArgumentMetadata) {
+  transform(value: any) {
     try {
       // Intentamos parsear y parsear el valor con Zod
       // Esto también ejecuta los preprocessors (como convertir strings ISO a Date)
@@ -18,9 +18,9 @@ export class ZodValidationPipe implements PipeTransform {
         const zodErr = error as any;
         const issues = zodErr.issues || zodErr.errors || [];
         const formattedErrors = issues.map(
-          (err: any) => `${err.path.join('.')}: ${err.message}`
+          (err: any) => `${err.path.join('.')}: ${err.message}`,
         );
-        
+
         throw new BadRequestException({
           message: 'Error de validación de datos',
           errors: formattedErrors,
