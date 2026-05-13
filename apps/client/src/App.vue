@@ -13,7 +13,7 @@ const showPublicNav = computed(() => !route.path.startsWith('/admin'))
     <!-- Navbar para rutas públicas -->
     <div v-if="showPublicNav" class="navbar bg-base-100 shadow-sm">
       <div class="flex-1">
-        <router-link to="/" class="btn btn-ghost normal-case text-xl">Transparencia CGPA</router-link>
+        <router-link to="/" class="btn btn-ghost normal-case text-xl">CGPA</router-link>
       </div>
       <div class="flex-none">
         <ul class="menu menu-horizontal px-1">
