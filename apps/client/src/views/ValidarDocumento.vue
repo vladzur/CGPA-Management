@@ -50,9 +50,9 @@ const fetchDocumento = async () => {
   loading.value = true;
   error.value = '';
   try {
-    const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+    const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
     const uuid = route.params.uuid as string;
-    const res = await axios.get(`${baseURL}/api/documentos/validar/${uuid}`);
+    const res = await axios.get(`${baseURL}/documentos/validar/${uuid}`);
     documento.value = res.data;
   } catch (err: any) {
     error.value = 'No se pudo conectar con el servidor de verificación.';
