@@ -425,7 +425,22 @@ export class LibroBalanceService {
       }
 
       // ─── PIE DE PÁGINA (hash + QR o marca de borrador) ──────────
-      const bottomY = doc.page.height - 50;
+      // Reserva espacio para el footer; si el resumen está muy abajo, salta a nueva página
+      const libroFooterHeight = 120;
+      const hasQR = documento?.qr_base64;
+      const pageH = doc.page.height;
+
+      if (doc.y > pageH - libroFooterHeight) {
+        doc.addPage();
+      }
+
+      const footerY = pageH - 70;
+      const marginX = 40;
+      // Línea separadora
+      doc
+        .moveTo(marginX, footerY)
+        .lineTo(pageWidth - marginX, footerY)
+        .stroke('#cccccc');
 
       if (documento) {
         const hashShort =
@@ -434,28 +449,47 @@ export class LibroBalanceService {
         doc
           .fontSize(8)
           .font('Helvetica')
-          .text(`Hash: ${hashShort}`, 40, bottomY, {
-            width: 300,
+          .fillColor('#333333')
+          .text(`Hash: ${hashShort}`, marginX, footerY + 10, {
+            width: hasQR ? 340 : usableWidth,
             align: 'left',
           });
 
-        if (documento.qr_base64) {
+        if (documento.uuid_verificacion) {
+          doc
+            .fontSize(7)
+            .fillColor('#888888')
+            .text(
+              `UUID: ${documento.uuid_verificacion}`,
+              marginX,
+              footerY + 24,
+              { width: hasQR ? 340 : usableWidth, align: 'left' },
+            );
+        }
+
+        if (hasQR && documento.qr_base64) {
+          const qrSize = 90;
+          const qrX = pageWidth - marginX - qrSize;
+          const qrY = footerY + 5;
+
+          doc.rect(qrX - 3, qrY - 3, qrSize + 6, qrSize + 6).fill('#ffffff');
+
           const qrBuffer = Buffer.from(
             documento.qr_base64.replace(/^data:image\/png;base64,/, ''),
             'base64',
           );
-          doc.image(qrBuffer, doc.page.width - 106, bottomY - 10, {
-            width: 56,
-            height: 56,
+          doc.image(qrBuffer, qrX, qrY, {
+            width: qrSize,
+            height: qrSize,
           });
         }
       } else {
         doc
-          .fontSize(8)
+          .fontSize(9)
           .font('Helvetica')
           .fillColor('#8B0000')
-          .text('BORRADOR - Sin firma digital', 40, bottomY, {
-            width: 300,
+          .text('BORRADOR - Sin firma digital', marginX, footerY + 12, {
+            width: usableWidth,
             align: 'left',
           });
       }
