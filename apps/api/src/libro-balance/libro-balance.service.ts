@@ -406,8 +406,11 @@ export class LibroBalanceService {
         .lineTo(pageWidth - 40, y)
         .stroke('#000000');
 
+      // Sincronizar cursor con la posición real tras la tabla
+      doc.y = y;
+
       // ─── RESUMEN ─────────────────────────────────────────────────
-      doc.moveDown(1.5);
+      doc.moveDown(1);
 
       const resumenX = marginLeft + 20;
       doc
@@ -430,22 +433,26 @@ export class LibroBalanceService {
       }
 
       // ─── PIE DE PÁGINA (hash + QR o marca de borrador) ──────────
-      // Reserva espacio para el footer; si el resumen está muy abajo, salta a nueva página
-      const libroFooterHeight = 120;
-      const hasQR = documento?.qr_base64;
+      const footerMargin = 40;
       const pageH = doc.page.height;
+      const minFooterSpace = 100;
+      const hasQR = documento?.qr_base64;
 
-      if (doc.y > pageH - libroFooterHeight) {
+      // Si no hay espacio suficiente para el footer en esta página, saltar a nueva
+      if (doc.y + minFooterSpace > pageH - doc.page.margins.bottom) {
         doc.addPage();
       }
 
-      const footerY = pageH - 70;
-      const marginX = 40;
-      // Línea separadora
+      doc.moveDown(2);
+
+      // Línea separadora del footer
+      const footerTop = doc.y;
       doc
-        .moveTo(marginX, footerY)
-        .lineTo(pageWidth - marginX, footerY)
+        .moveTo(footerMargin, footerTop)
+        .lineTo(pageWidth - footerMargin, footerTop)
         .stroke('#cccccc');
+
+      doc.moveDown(0.5);
 
       if (documento) {
         const hashShort =
@@ -455,35 +462,40 @@ export class LibroBalanceService {
           .fontSize(8)
           .font('Helvetica')
           .fillColor('#333333')
-          .text(`Hash: ${hashShort}`, marginX, footerY + 10, {
-            width: hasQR ? 340 : usableWidth,
+          .text(`Hash: ${hashShort}`, footerMargin, doc.y, {
+            width: hasQR ? pageWidth - footerMargin * 2 - 100 : usableWidth,
             align: 'left',
           });
 
         if (documento.uuid_verificacion) {
+          doc.moveDown(0.2);
           doc
             .fontSize(7)
             .fillColor('#888888')
-            .text(
-              `UUID: ${documento.uuid_verificacion}`,
-              marginX,
-              footerY + 24,
-              { width: hasQR ? 340 : usableWidth, align: 'left' },
-            );
+            .text(`UUID: ${documento.uuid_verificacion}`, footerMargin, doc.y, {
+              width: hasQR ? pageWidth - footerMargin * 2 - 100 : usableWidth,
+              align: 'left',
+            });
         }
 
         if (hasQR && documento.qr_base64) {
           const qrSize = 90;
-          const qrX = pageWidth - marginX - qrSize;
-          const qrY = footerY + 5;
+          const qrX = pageWidth - footerMargin - qrSize;
+          // Posicionar QR alineado con el texto del footer, dentro de los márgenes
+          const qrY = footerTop + 5;
+          const qrBottom = qrY + qrSize;
+          const maxY = pageH - doc.page.margins.bottom;
 
-          doc.rect(qrX - 3, qrY - 3, qrSize + 6, qrSize + 6).fill('#ffffff');
+          // Si el QR se sale del margen inferior, ajustar hacia arriba
+          const adjustedQrY = qrBottom > maxY ? maxY - qrSize : qrY;
+
+          doc.rect(qrX - 3, adjustedQrY - 3, qrSize + 6, qrSize + 6).fill('#ffffff');
 
           const qrBuffer = Buffer.from(
             documento.qr_base64.replace(/^data:image\/png;base64,/, ''),
             'base64',
           );
-          doc.image(qrBuffer, qrX, qrY, {
+          doc.image(qrBuffer, qrX, adjustedQrY, {
             width: qrSize,
             height: qrSize,
           });
@@ -493,7 +505,7 @@ export class LibroBalanceService {
           .fontSize(9)
           .font('Helvetica')
           .fillColor('#8B0000')
-          .text('BORRADOR - Sin firma digital', marginX, footerY + 12, {
+          .text('BORRADOR - Sin firma digital', footerMargin, doc.y, {
             width: usableWidth,
             align: 'left',
           });
