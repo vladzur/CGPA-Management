@@ -36,6 +36,9 @@ export class LibroBalanceService {
   /**
    * Orquesta la generación del libro de balance: consulta transacciones,
    * crea un Documento, lo sella y genera el PDF enriquecido.
+   *
+   * En modo "borrador" omite la creación y sellado del Documento MVI,
+   * generando un PDF sin hash ni QR.
    */
   async generateBalanceBook(
     dto: GenerateBalanceBookDto,
@@ -43,6 +46,7 @@ export class LibroBalanceService {
     userName: string,
   ): Promise<Buffer> {
     const { start, end } = this.resolveDateRange(dto);
+    const modo = dto.modo ?? 'firmado';
 
     const transacciones = await this.queryTransactions(
       start,
@@ -57,12 +61,22 @@ export class LibroBalanceService {
     }
 
     const totals = this.calculateTotals(transacciones);
-
     const periodoLabel = this.buildPeriodoLabel(dto, start, end);
+
+    if (modo === 'borrador') {
+      return this.generateBalanceBookPDF(
+        null,
+        transacciones,
+        totals,
+        periodoLabel,
+        dto,
+      );
+    }
+
+    // Modo firmado: flujo completo con MVI
     const titulo = dto.titulo || `Libro de Balance - Período ${dto.periodo}`;
     const descripcion = this.buildDescripcion(periodoLabel, totals);
 
-    // Crear Documento como BORRADOR
     const documentoCreado = await this.documentosService.create(
       {
         titulo,
@@ -76,22 +90,20 @@ export class LibroBalanceService {
       userName,
     );
 
-    // Sellar el Documento (calcula hash, QR, UUID)
     const documentoSellado = await this.documentosService.sellar(
       documentoCreado.id,
       userUid,
       userName,
     );
 
-    // Leer el documento sellado completo para obtener hash y QR
     const documento = await this.documentosService.findOne(documentoSellado.id);
 
-    // Generar PDF enriquecido con tabla de transacciones
     return this.generateBalanceBookPDF(
       documento as unknown as Documento,
       transacciones,
       totals,
       periodoLabel,
+      dto,
     );
   }
 
@@ -218,12 +230,16 @@ export class LibroBalanceService {
 
   /**
    * Genera el PDF enriquecido del libro de balance con tabla de transacciones.
+   *
+   * @param documento - Documento sellado (null en modo borrador)
+   * @param dto - DTO con los parámetros de generación (RUT emisor, título, etc.)
    */
   private generateBalanceBookPDF(
-    documento: Documento,
+    documento: Documento | null,
     transacciones: Transaccion[],
     totals: Totals,
     periodoLabel: string,
+    dto: GenerateBalanceBookDto,
   ): Promise<Buffer> {
     return new Promise((resolve, reject) => {
       const chunks: Buffer[] = [];
@@ -261,11 +277,16 @@ export class LibroBalanceService {
 
       const rowHeight = 16;
       const footerHeight = 70;
+      const rutEmisor = documento?.rut_emisor || this.getRutEmisor(dto);
+      const titulo =
+        documento?.titulo ||
+        dto.titulo ||
+        `Libro de Balance - Período ${dto.periodo}`;
 
       // ─── ENCABEZADO ──────────────────────────────────────────────
       doc.fontSize(16).text('CGPA - Liceo AGB', { align: 'center' });
       doc.moveDown(0.3);
-      doc.fontSize(13).text('LIBRO DE BALANCE', { align: 'center' });
+      doc.fontSize(13).text(titulo.toUpperCase(), { align: 'center' });
       doc.moveDown(0.5);
 
       doc.fontSize(9).text(`Período: ${periodoLabel}`, { align: 'center' });
@@ -275,14 +296,21 @@ export class LibroBalanceService {
           `Generado el ${new Date().toLocaleDateString('es-CL', { day: 'numeric', month: 'long', year: 'numeric' })}`,
           { align: 'center' },
         );
-      doc
-        .fontSize(9)
-        .text(`RUT Emisor: ${documento.rut_emisor}`, { align: 'center' });
+      doc.fontSize(9).text(`RUT Emisor: ${rutEmisor}`, { align: 'center' });
 
       if (transacciones[0]?.proyecto_id) {
         doc.fontSize(9).text(`Proyecto: ${transacciones[0].proyecto_id}`, {
           align: 'center',
         });
+      }
+
+      // Marca de agua BORRADOR
+      if (!documento) {
+        doc
+          .fontSize(10)
+          .fillColor('#8B0000')
+          .text('BORRADOR - Sin firma digital', { align: 'center' });
+        doc.fillColor('#000000');
       }
 
       doc.moveDown(1);
@@ -396,28 +424,40 @@ export class LibroBalanceService {
         doc.moveDown(0.3);
       }
 
-      // ─── PIE DE PÁGINA (hash + QR) ───────────────────────────────
-      const hashShort =
-        documento.hash_integridad?.substring(0, 8) ?? '--------';
+      // ─── PIE DE PÁGINA (hash + QR o marca de borrador) ──────────
       const bottomY = doc.page.height - 50;
 
-      doc
-        .fontSize(8)
-        .font('Helvetica')
-        .text(`Hash: ${hashShort}`, 40, bottomY, {
-          width: 300,
-          align: 'left',
-        });
+      if (documento) {
+        const hashShort =
+          documento.hash_integridad?.substring(0, 8) ?? '--------';
 
-      if (documento.qr_base64) {
-        const qrBuffer = Buffer.from(
-          documento.qr_base64.replace(/^data:image\/png;base64,/, ''),
-          'base64',
-        );
-        doc.image(qrBuffer, doc.page.width - 106, bottomY - 10, {
-          width: 56,
-          height: 56,
-        });
+        doc
+          .fontSize(8)
+          .font('Helvetica')
+          .text(`Hash: ${hashShort}`, 40, bottomY, {
+            width: 300,
+            align: 'left',
+          });
+
+        if (documento.qr_base64) {
+          const qrBuffer = Buffer.from(
+            documento.qr_base64.replace(/^data:image\/png;base64,/, ''),
+            'base64',
+          );
+          doc.image(qrBuffer, doc.page.width - 106, bottomY - 10, {
+            width: 56,
+            height: 56,
+          });
+        }
+      } else {
+        doc
+          .fontSize(8)
+          .font('Helvetica')
+          .fillColor('#8B0000')
+          .text('BORRADOR - Sin firma digital', 40, bottomY, {
+            width: 300,
+            align: 'left',
+          });
       }
 
       doc.end();

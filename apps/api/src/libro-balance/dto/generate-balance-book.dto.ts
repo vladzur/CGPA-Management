@@ -7,6 +7,7 @@ export class GenerateBalanceBookDto {
   proyecto_id?: string;
   rut_emisor?: string;
   titulo?: string;
+  modo?: 'borrador' | 'firmado';
 }
 
 export const GenerateBalanceBookSchema = z.object({
@@ -20,4 +21,5 @@ export const GenerateBalanceBookSchema = z.object({
   proyecto_id: z.string().min(1).optional(),
   rut_emisor: z.string().min(1).optional(),
   titulo: z.string().min(1).optional(),
+  modo: z.enum(['borrador', 'firmado']).default('firmado'),
 });
