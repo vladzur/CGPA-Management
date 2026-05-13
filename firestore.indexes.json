@@ -68,6 +68,23 @@
       "fields": [
         { "fieldPath": "numero_secuencia", "order": "ASCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "transacciones",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "fecha", "order": "ASCENDING" },
+        { "fieldPath": "numero_secuencia", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "transacciones",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "proyecto_id", "order": "ASCENDING" },
+        { "fieldPath": "fecha", "order": "ASCENDING" },
+        { "fieldPath": "numero_secuencia", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []
