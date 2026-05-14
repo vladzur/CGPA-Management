@@ -14,9 +14,9 @@ export const ProyectoSchema = z.object({
   nombre: z.string().min(1),
   descripcion: z.string().min(1),
   estado: EstadoProyectoSchema,
-  presupuesto_estimado: z.number().nonnegative(),
-  monto_recaudado: z.number().nonnegative(),
-  monto_ejecutado: z.number().nonnegative(),
+  presupuesto_estimado: z.number().min(0),
+  monto_recaudado: z.number().min(0),
+  monto_ejecutado: z.number().min(0),
   fecha_inicio: TimestampSchema,
   responsable: z.object({
     uid: z.string(),

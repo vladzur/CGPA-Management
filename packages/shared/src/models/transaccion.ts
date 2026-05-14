@@ -23,7 +23,7 @@ export const TransaccionSchema = z.object({
    * Número ordinal de la transacción en la cadena (1, 2, 3...).
    * Permite reconstruir el orden histórico sin depender de timestamps.
    */
-  numero_secuencia: z.number().int().nonnegative().optional(),
+  numero_secuencia: z.number().int().min(0).optional(),
 
   /**
    * Hash SHA-256 de la transacción anterior en la cadena.

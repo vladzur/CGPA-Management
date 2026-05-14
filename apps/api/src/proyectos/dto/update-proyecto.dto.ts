@@ -7,7 +7,7 @@ export class UpdateProyectoDto {
 }
 
 export const UpdateProyectoSchema = z.object({
-  presupuesto_estimado: z.number().nonnegative().optional(),
+  presupuesto_estimado: z.number().min(0).optional(),
   nombre: z.string().min(1).optional(),
   descripcion: z.string().min(1).optional(),
 });
