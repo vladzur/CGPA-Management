@@ -11,6 +11,7 @@ import { CreateDocumentoDto } from './dto/create-documento.dto';
 import { UpdateDocumentoDto } from './dto/update-documento.dto';
 import { DocumentoIntegrityService } from './documento-integrity.service';
 import { AuditService } from '../common/audit/audit.service';
+import { firestoreNow } from '../common/firestore-utils';
 
 @Injectable()
 export class DocumentosService {
@@ -45,7 +46,7 @@ export class DocumentosService {
     const nuevo: Documento = {
       ...dto,
       creado_por: { uid: userUid, nombre: userName },
-      fecha_creacion: admin.firestore.Timestamp.now() as any,
+      fecha_creacion: firestoreNow(),
     };
 
     const batch = this.db.batch();
@@ -143,7 +144,7 @@ export class DocumentosService {
 
     const updates: any = {
       ...dto,
-      fecha_actualizacion: admin.firestore.Timestamp.now() as any,
+      fecha_actualizacion: firestoreNow(),
     };
 
     const batch = this.db.batch();

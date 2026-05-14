@@ -4,6 +4,7 @@ import { CreateComunicadoDto } from './dto/create-comunicado.dto';
 import { UpdateComunicadoDto } from './dto/update-comunicado.dto';
 import { Comunicado } from '@cgpa/shared';
 import { AuditService } from '../common/audit/audit.service';
+import { firestoreNow } from '../common/firestore-utils';
 
 @Injectable()
 export class ComunicadosService {
@@ -23,7 +24,7 @@ export class ComunicadosService {
     const nuevoComunicado: Comunicado = {
       ...createComunicadoDto,
       creado_por: { uid: userUid, nombre: userName },
-      fecha_creacion: admin.firestore.Timestamp.now() as any,
+      fecha_creacion: firestoreNow(),
     };
 
     const batch = this.db.batch();
@@ -98,7 +99,7 @@ export class ComunicadosService {
     const data = doc.data() as Comunicado;
     const updates: any = {
       ...updateComunicadoDto,
-      fecha_actualizacion: admin.firestore.Timestamp.now() as any,
+      fecha_actualizacion: firestoreNow(),
     };
 
     const batch = this.db.batch();

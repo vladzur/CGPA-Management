@@ -8,6 +8,7 @@ import { CreateProyectoDto } from './dto/create-proyecto.dto';
 import { UpdateProyectoDto } from './dto/update-proyecto.dto';
 import { Proyecto } from '@cgpa/shared';
 import { AuditService } from '../common/audit/audit.service';
+import { firestoreNow } from '../common/firestore-utils';
 
 @Injectable()
 export class ProyectosService {
@@ -35,7 +36,7 @@ export class ProyectosService {
       estado: 'PLANIFICACION',
       monto_recaudado: 0,
       monto_ejecutado: 0,
-      fecha_inicio: admin.firestore.Timestamp.now() as any,
+      fecha_inicio: firestoreNow(),
     };
 
     const batch = this.db.batch();
