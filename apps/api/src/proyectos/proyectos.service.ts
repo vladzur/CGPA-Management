@@ -17,6 +17,12 @@ export class ProyectosService {
     return admin.firestore();
   }
 
+  private computeAvanceFinanciero(ejecutado: number, estimado: number): number {
+    return estimado > 0
+      ? Math.min((ejecutado / estimado) * 100, 100)
+      : 0;
+  }
+
   async create(
     createProyectoDto: CreateProyectoDto,
     userUid: string,
@@ -52,19 +58,13 @@ export class ProyectosService {
     const snapshot = await this.db.collection('proyectos').get();
     return snapshot.docs.map((doc) => {
       const data = doc.data() as Proyecto;
-      // Resumen financiero: presupuesto vs ejecutado
-      const avance_financiero =
-        data.presupuesto_estimado > 0
-          ? Math.min(
-              (data.monto_ejecutado / data.presupuesto_estimado) * 100,
-              100,
-            )
-          : 0;
-
       return {
         id: doc.id,
         ...data,
-        avance_financiero,
+        avance_financiero: this.computeAvanceFinanciero(
+          data.monto_ejecutado,
+          data.presupuesto_estimado,
+        ),
       };
     });
   }
@@ -75,15 +75,15 @@ export class ProyectosService {
       throw new NotFoundException(`Proyecto con id ${id} no encontrado`);
     }
     const data = doc.data() as Proyecto;
-    const avance_financiero =
-      data.presupuesto_estimado > 0
-        ? Math.min(
-            (data.monto_ejecutado / data.presupuesto_estimado) * 100,
-            100,
-          )
-        : 0;
 
-    return { id: doc.id, ...data, avance_financiero };
+    return {
+      id: doc.id,
+      ...data,
+      avance_financiero: this.computeAvanceFinanciero(
+        data.monto_ejecutado,
+        data.presupuesto_estimado,
+      ),
+    };
   }
 
   async update(
@@ -104,14 +104,10 @@ export class ProyectosService {
 
     // Si el presupuesto cambia, recalcular porcentaje de avance
     if (updateProyectoDto.presupuesto_estimado !== undefined) {
-      const nuevoPresupuesto = updateProyectoDto.presupuesto_estimado;
-      const avance_financiero =
-        nuevoPresupuesto > 0
-          ? Math.min((data.monto_ejecutado / nuevoPresupuesto) * 100, 100)
-          : 0;
-
-      // Guardamos el avance en la bd por si se consulta desde otro lado
-      updates.avance_financiero = avance_financiero;
+      updates.avance_financiero = this.computeAvanceFinanciero(
+        data.monto_ejecutado,
+        updateProyectoDto.presupuesto_estimado,
+      );
     }
 
     const batch = this.db.batch();
