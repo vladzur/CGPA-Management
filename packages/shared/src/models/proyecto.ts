@@ -6,7 +6,7 @@ export const EstadoProyectoSchema = z.enum(['PLANIFICACION', 'EN_CURSO', 'FINALI
 export const AvanceSchema = z.object({
   fecha: TimestampSchema,
   comentario: z.string().min(1),
-  fotos: z.array(z.string().url('Debe ser una URL válida')),
+  fotos: z.array(z.string().regex(/^https?:\/\/[^\s/$.?#]+\.[^\s]*$/, "URL inválida")),
   porcentaje_progreso: z.number().min(0).max(100),
 });
 

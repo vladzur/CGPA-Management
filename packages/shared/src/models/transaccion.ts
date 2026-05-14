@@ -10,7 +10,7 @@ export const TransaccionSchema = z.object({
   fecha: TimestampSchema,
   categoria: z.string().min(1),
   descripcion: z.string().min(1),
-  respaldo_url: z.string().url().optional(), // Puede ser opcional si aún no hay boleta/factura
+  respaldo_url: z.string().regex(/^https?:\/\/[^\s/$.?#]+\.[^\s]*$/, "URL inválida").optional(), // Puede ser opcional si aún no hay boleta/factura
   registrado_por: z.object({
     uid: z.string(),
     nombre: z.string(),
