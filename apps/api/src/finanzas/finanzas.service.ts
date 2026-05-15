@@ -8,6 +8,7 @@ import { Transaccion, Proyecto } from '@cgpa/shared';
 import { CreateTransactionDto } from '../transactions/dto/create-transaction.dto';
 import { AuditService } from '../common/audit/audit.service';
 import { CryptoSealService } from '../common/crypto/crypto-seal.service';
+import { firestoreNow } from '../common/firestore-utils';
 
 @Injectable()
 export class FinanzasService {
@@ -98,7 +99,7 @@ export class FinanzasService {
           estado: 'CONCILIADO',
           registrado_por: { uid: userUid, nombre: userName },
           // Aseguramos que la fecha es el Timestamp actual del servidor de Firestore
-          fecha: admin.firestore.Timestamp.now() as any,
+          fecha: firestoreNow(),
         };
 
         // --- 2b. SELLO CRIPTOGRÁFICO ---

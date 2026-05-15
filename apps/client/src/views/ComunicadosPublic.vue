@@ -39,7 +39,6 @@ const fetchComunicados = async () => {
     const res = await axios.get(`${baseURL}/api/comunicados/publicos`);
     comunicados.value = res.data;
   } catch (err: any) {
-    console.error('Error al cargar comunicados:', err);
     comunicados.value = [];
   } finally {
     loading.value = false;

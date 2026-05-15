@@ -17,7 +17,7 @@ export const DocumentoSchema = z.object({
   fecha_creacion: TimestampSchema,
   fecha_actualizacion: TimestampSchema.optional(),
   hash_integridad: z.string().optional(),
-  uuid_verificacion: z.string().uuid().optional(),
+  uuid_verificacion: z.string().regex(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i, "UUID inválido").optional(),
   qr_base64: z.string().optional(),
   salt: z.string().optional(),
   fecha_sellado: TimestampSchema.optional(),
