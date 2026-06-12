@@ -8,7 +8,7 @@ jest.mock('qrcode', () => ({
 }));
 
 jest.mock('pdfkit', () => {
-  const mockDoc = {
+  const mockDoc: any = {
     on: jest.fn((event: string, cb: (...args: unknown[]) => void) => {
       if (event === 'data') {
         cb(Buffer.from('fake-pdf-content'));
@@ -23,7 +23,16 @@ jest.mock('pdfkit', () => {
     text: jest.fn().mockReturnThis(),
     moveDown: jest.fn().mockReturnThis(),
     image: jest.fn().mockReturnThis(),
+    rect: jest.fn().mockReturnThis(),
+    fill: jest.fn().mockReturnThis(),
+    fillColor: jest.fn().mockReturnThis(),
+    stroke: jest.fn().mockReturnThis(),
+    moveTo: jest.fn().mockReturnThis(),
+    lineTo: jest.fn().mockReturnThis(),
+    lineWidth: jest.fn().mockReturnThis(),
+    addPage: jest.fn().mockReturnThis(),
     end: jest.fn(),
+    y: 50,
     page: { height: 842, width: 595 },
   };
 
@@ -209,11 +218,82 @@ describe('DocumentoIntegrityService', () => {
       qr_base64: 'data:image/png;base64,qrFake',
     };
 
+    beforeEach(() => {
+      // Reiniciar el mock de pdfkit para cada test
+      jest.clearAllMocks();
+    });
+
     it('debe generar un buffer de PDF', async () => {
       const buffer = await service.generatePDFBuffer(documentoBase);
 
       expect(buffer).toBeInstanceOf(Buffer);
       expect(PDFDocument).toHaveBeenCalled();
+    });
+
+    it('debe incluir el membrete del CGPA en el encabezado', async () => {
+      await service.generatePDFBuffer(documentoBase);
+
+      const mockDoc = (PDFDocument as jest.Mock).mock.results[0].value;
+
+      // Verifica que se escribió el nombre de la organización
+      const textCalls = (mockDoc.text as jest.Mock).mock.calls;
+      const headerTexts = textCalls.map((call: any[]) => call[0]);
+
+      expect(headerTexts).toContain(
+        'CENTRO GENERAL DE PADRES Y APODERADOS',
+      );
+      expect(headerTexts).toContain('Liceo Alexander Graham Bell');
+      expect(headerTexts).toContain('COMPROBANTE DIGITAL');
+    });
+
+    it('debe dibujar la tabla con los datos del documento', async () => {
+      await service.generatePDFBuffer(documentoBase);
+
+      const mockDoc = (PDFDocument as jest.Mock).mock.results[0].value;
+
+      // Verifica que se usó rect() para dibujar la tabla (cabecera + 3 filas)
+      expect(mockDoc.rect).toHaveBeenCalled();
+
+      // Verifica que las filas contienen los datos esperados
+      const textCalls = (mockDoc.text as jest.Mock).mock.calls;
+      const allTexts = textCalls.map((call: any[]) => call[0]);
+
+      // Etiquetas de la tabla
+      expect(allTexts).toContain('Concepto');
+      expect(allTexts).toContain('Valor');
+      expect(allTexts).toContain('Monto');
+      expect(allTexts).toContain('Fecha de Emisión');
+      expect(allTexts).toContain('RUT Emisor');
+
+      // Valores de la tabla
+      expect(allTexts).toContain('$1.500.000');
+      expect(allTexts).toContain('12.345.678-9');
+    });
+
+    it('debe incluir la línea decorativa del encabezado', async () => {
+      await service.generatePDFBuffer(documentoBase);
+
+      const mockDoc = (PDFDocument as jest.Mock).mock.results[0].value;
+
+      // Verifica que se dibujó una línea decorativa
+      expect(mockDoc.lineWidth).toHaveBeenCalledWith(2);
+      expect(mockDoc.moveTo).toHaveBeenCalled();
+      expect(mockDoc.lineTo).toHaveBeenCalled();
+      expect(mockDoc.stroke).toHaveBeenCalledWith('#2c3e50');
+    });
+
+    it('debe dibujar la cabecera de la tabla con fondo oscuro', async () => {
+      await service.generatePDFBuffer(documentoBase);
+
+      const mockDoc = (PDFDocument as jest.Mock).mock.results[0].value;
+
+      // Verifica el fondo de la cabecera
+      const fillCalls = (mockDoc.fill as jest.Mock).mock.calls;
+      expect(fillCalls).toContainEqual(['#2c3e50']);
+
+      // Verifica texto blanco en la cabecera
+      const fillColorCalls = (mockDoc.fillColor as jest.Mock).mock.calls;
+      expect(fillColorCalls).toContainEqual(['#ffffff']);
     });
 
     it('debe rechazar si pdfkit emite error', async () => {
