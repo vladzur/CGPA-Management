@@ -35,9 +35,13 @@ export class DocumentosService {
   }
 
   private getBaseUrl(): string {
-    return (
-      process.env.VERIFICATION_BASE_URL || 'https://cgpa-liceo-agb.web.app'
-    );
+    const baseUrl = process.env.VERIFICATION_BASE_URL;
+    if (!baseUrl) {
+      throw new InternalServerErrorException(
+        'VERIFICATION_BASE_URL no está configurado en el servidor',
+      );
+    }
+    return baseUrl;
   }
 
   async create(dto: CreateDocumentoDto, userUid: string, userName: string) {
