@@ -418,22 +418,20 @@ describe('DocumentosService', () => {
       expect(result.estado).toBe('SELLADO');
     });
 
-    it('debe usar URL por defecto si VERIFICATION_BASE_URL no esta configurada', async () => {
+    it('debe lanzar InternalServerErrorException si VERIFICATION_BASE_URL no esta configurada', async () => {
       delete process.env.VERIFICATION_BASE_URL;
-      const docRef = createMockDocumentRef('doc-default-url');
+      const docRef = createMockDocumentRef('doc-no-url');
       const snap = createMockDocSnapshot(
-        'doc-default-url',
+        'doc-no-url',
         makeDocumento({ estado: 'BORRADOR' }),
       );
       const t = setupTransaction();
       t.get.mockResolvedValue(snap);
       setupCollection(docRef);
 
-      await service.sellar('doc-default-url', 'uid-admin', 'Admin');
-
-      expect(mockIntegrityService.generateQR).toHaveBeenCalledWith(
-        expect.stringContaining('cgpa-liceo-agb.web.app'),
-      );
+      await expect(
+        service.sellar('doc-no-url', 'uid-admin', 'Admin'),
+      ).rejects.toThrow(InternalServerErrorException);
     });
 
     it('debe lanzar BadRequestException si el documento ya fue sellado', async () => {

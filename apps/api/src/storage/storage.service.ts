@@ -5,8 +5,12 @@ import { v4 as uuidv4 } from 'uuid';
 @Injectable()
 export class StorageService {
   private get bucket() {
-    const bucketName =
-      process.env.FIREBASE_STORAGE_BUCKET || 'cgpa-liceo-agb.appspot.com';
+    const bucketName = process.env.FIREBASE_STORAGE_BUCKET;
+    if (!bucketName) {
+      throw new InternalServerErrorException(
+        'FIREBASE_STORAGE_BUCKET no está configurado en el servidor',
+      );
+    }
     return admin.storage().bucket(bucketName);
   }
 
