@@ -165,13 +165,14 @@ export class DocumentoIntegrityService {
         rowY += rowHeight;
       }
 
-      // Posicionar cursor debajo de la tabla
+      // Posicionar cursor debajo de la tabla y resetear X al margen
+      doc.x = marginX;
       doc.y = rowY + 12;
 
       // ─── DESCRIPCIÓN ─────────────────────────────────────────────
 
-      doc.font('Helvetica').fontSize(11);
-      doc.text(`Descripción: ${documento.descripcion}`, {
+      doc.font('Helvetica').fontSize(12);
+      doc.text(`Descripción: ${documento.descripcion}`, marginX, doc.y, {
         width: usableWidth,
         align: 'left',
       });
