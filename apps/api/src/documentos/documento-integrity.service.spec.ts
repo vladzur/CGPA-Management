@@ -32,6 +32,7 @@ jest.mock('pdfkit', () => {
     lineWidth: jest.fn().mockReturnThis(),
     addPage: jest.fn().mockReturnThis(),
     end: jest.fn(),
+    x: 50,
     y: 50,
     page: { height: 842, width: 595 },
   };
