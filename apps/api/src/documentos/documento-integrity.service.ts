@@ -63,53 +63,139 @@ export class DocumentoIntegrityService {
       const pageWidth = doc.page.width;
       const marginX = 50;
       const usableWidth = pageWidth - marginX * 2;
-      const footerHeight = 110; // espacio reservado para hash + QR
-      const contentBottom = pageHeight - marginX - footerHeight;
+      const footerHeight = 110;
 
-      // ─── CONTENIDO ──────────────────────────────────────────────────
+      // ─── ENCABEZADO ──────────────────────────────────────────────
 
-      // Título
-      doc.fontSize(18).text(documento.titulo, {
-        align: 'center',
-        continued: false,
-      });
-      doc.moveDown(1);
+      doc
+        .font('Helvetica-Bold')
+        .fontSize(14)
+        .fillColor('#1a1a1a')
+        .text('CENTRO GENERAL DE PADRES Y APODERADOS', { align: 'center' });
 
-      // Datos del documento
-      doc.fontSize(12);
-      doc.text(`Monto: $${documento.monto.toLocaleString('es-CL')}`);
-      doc.text(`Fecha de Emisión: ${fechaEmision.toLocaleDateString('es-CL')}`);
-      doc.text(`RUT Emisor: ${documento.rut_emisor}`);
+      doc
+        .font('Helvetica')
+        .fontSize(12)
+        .fillColor('#555555')
+        .text('Liceo Alexander Graham Bell', { align: 'center' });
+
+      doc.fillColor('#000000');
+      doc.moveDown(0.3);
+
+      // Línea decorativa
+      const headerLineY = doc.y;
+      doc
+        .lineWidth(2)
+        .moveTo(marginX + 30, headerLineY)
+        .lineTo(pageWidth - marginX - 30, headerLineY)
+        .stroke('#2c3e50');
       doc.moveDown(0.5);
 
-      // Descripción (puede ser larga — dejamos que fluya con control de espacio)
-      doc.text(`Descripción: ${documento.descripcion}`, {
-        width: usableWidth,
+      doc
+        .font('Helvetica-Bold')
+        .fontSize(10)
+        .fillColor('#2c3e50')
+        .text('COMPROBANTE DIGITAL', { align: 'center' });
+
+      doc.fillColor('#000000');
+      doc.moveDown(1.5);
+
+      // ─── TÍTULO ──────────────────────────────────────────────────
+
+      doc
+        .font('Helvetica-Bold')
+        .fontSize(16)
+        .text(documento.titulo, { align: 'center' });
+      doc.moveDown(1);
+
+      // ─── TABLA DE DATOS ──────────────────────────────────────────
+
+      const colConcepto = Math.round(usableWidth * 0.45);
+      const colValor = usableWidth - colConcepto;
+      const rowHeight = 24;
+      const colValorX = marginX + colConcepto;
+      const tableTop = doc.y;
+
+      const filas = [
+        {
+          label: 'Monto',
+          value: `$${documento.monto.toLocaleString('es-CL')}`,
+        },
+        {
+          label: 'Fecha de Emisión',
+          value: fechaEmision.toLocaleDateString('es-CL'),
+        },
+        { label: 'RUT Emisor', value: documento.rut_emisor },
+      ];
+
+      // Fondo cabecera
+      doc
+        .rect(marginX, tableTop, usableWidth, rowHeight)
+        .fill('#2c3e50');
+
+      // Texto cabecera
+      doc
+        .font('Helvetica-Bold')
+        .fontSize(9)
+        .fillColor('#ffffff');
+      doc.text('Concepto', marginX + 8, tableTop + 6, {
+        width: colConcepto - 16,
       });
+      doc.text('Valor', colValorX + 8, tableTop + 6, {
+        width: colValor - 16,
+      });
+      doc.fillColor('#000000');
 
-      // ─── VERIFICAR ESPACIO PARA FOOTER ──────────────────────────────
+      // Filas de datos
+      let rowY = tableTop + rowHeight;
+      for (const fila of filas) {
+        doc
+          .lineWidth(0.5)
+          .rect(marginX, rowY, usableWidth, rowHeight)
+          .stroke('#cccccc');
 
-      // Si el contenido sobrepasó el área de contenido, ir a nueva página
-      if (doc.y > contentBottom) {
-        doc.addPage();
+        doc.font('Helvetica').fontSize(10);
+        doc.text(fila.label, marginX + 8, rowY + 5, {
+          width: colConcepto - 16,
+        });
+        doc.text(fila.value, colValorX + 8, rowY + 5, {
+          width: colValor - 16,
+        });
+
+        rowY += rowHeight;
       }
 
-      // Posicionar cursor al fondo de la página actual
-      const bottomY = pageHeight - marginX - footerHeight + 20;
+      // Posicionar cursor debajo de la tabla
+      doc.y = rowY + 12;
+
+      // ─── DESCRIPCIÓN ─────────────────────────────────────────────
+
+      doc.font('Helvetica').fontSize(11);
+      doc.text(`Descripción: ${documento.descripcion}`, {
+        width: usableWidth,
+        align: 'left',
+      });
+
+      // ─── FOOTER ──────────────────────────────────────────────────
+
+      const footerTop = Math.max(
+        doc.y + 30,
+        pageHeight - marginX - footerHeight,
+      );
 
       // Línea separadora
       doc
-        .moveTo(marginX, bottomY)
-        .lineTo(pageWidth - marginX, bottomY)
+        .lineWidth(1)
+        .moveTo(marginX, footerTop)
+        .lineTo(pageWidth - marginX, footerTop)
         .stroke('#cccccc');
 
-      // ─── PIE: HASH (izquierda) + QR (derecha) ───────────────────────
-
-      const footerTextY = bottomY + 12;
+      const footerTextY = footerTop + 12;
       const hashShort =
         documento.hash_integridad?.substring(0, 8) ?? '--------';
 
       doc
+        .font('Helvetica')
         .fontSize(9)
         .fillColor('#333333')
         .text(`Hash de integridad: ${hashShort}`, marginX, footerTextY, {
@@ -127,11 +213,11 @@ export class DocumentoIntegrityService {
           { width: usableWidth * 0.55, align: 'left' },
         );
 
-      // QR code (derecha) — más grande: ~3.5 cm ≈ 100px
+      // QR code (derecha)
       if (documento.qr_base64) {
         const qrSize = 100;
         const qrX = pageWidth - marginX - qrSize;
-        const qrY = bottomY + 5;
+        const qrY = footerTop + 5;
 
         // Fondo blanco detrás del QR para asegurar legibilidad
         doc.rect(qrX - 4, qrY - 4, qrSize + 8, qrSize + 8).fill('#ffffff');
