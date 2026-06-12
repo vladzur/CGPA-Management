@@ -2,7 +2,7 @@ const { initializeApp } = require('firebase-admin/app');
 const { getFirestore, Timestamp } = require('firebase-admin/firestore');
 
 // En produccion, Firebase Admin se autoconfigura con Application Default Credentials
-const app = initializeApp({ projectId: 'cgpa-liceo-agb' });
+const app = initializeApp();
 const db = getFirestore(app);
 
 async function migrate() {
