@@ -129,8 +129,13 @@ const submitForm = async () => {
           <label class="label"><span class="label-text font-medium text-neutral">Asociar a Proyecto (Opcional)</span></label>
           <select v-model="form.proyecto_id" class="select select-bordered w-full" :disabled="isSubmitting">
             <option value="">Ninguno (Gasto general)</option>
-            <option v-for="proy in store.proyectos" :key="proy.id" :value="proy.id">
-              {{ proy.nombre }}
+            <option
+              v-for="proy in store.proyectos"
+              :key="proy.id"
+              :value="proy.id"
+              :disabled="proy.estado === 'FINALIZADO'"
+            >
+              {{ proy.nombre }}<span v-if="proy.estado === 'FINALIZADO'"> (Finalizado)</span>
             </option>
           </select>
         </div>

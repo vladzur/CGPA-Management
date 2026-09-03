@@ -259,6 +259,58 @@ describe('ProyectosService', () => {
     });
   });
 
+  // ─── finalizar ─────────────────────────────────────────────────────────────
+
+  describe('finalizar', () => {
+    it('debe cambiar el estado a FINALIZADO y registrar auditoría', async () => {
+      const docRef = createMockDocumentRef('proj-fin');
+      const snap = createMockDocSnapshot('proj-fin', makeProyecto());
+      docRef.get.mockResolvedValue(snap);
+      setupCollection(docRef);
+      const batch = setupBatch();
+
+      const result = await service.finalizar('proj-fin', 'uid-admin', 'Admin');
+
+      expect(result).toMatchObject({ id: 'proj-fin', estado: 'FINALIZADO' });
+      expect(batch.update).toHaveBeenCalledWith(docRef, {
+        estado: 'FINALIZADO',
+      });
+      const [, entry] = (
+        mockAuditService.logActionWithTransactionOrBatch as jest.Mock
+      ).mock.calls[0];
+      expect(entry).toMatchObject({
+        accion: 'FINALIZAR_PROYECTO',
+        coleccion: 'proyectos',
+      });
+    });
+
+    it('debe lanzar NotFoundException si el proyecto no existe', async () => {
+      const docRef = createMockDocumentRef('proj-fin-nx');
+      const missingSnap = createMissingDocSnapshot();
+      docRef.get.mockResolvedValue(missingSnap);
+      const collection = { doc: jest.fn().mockReturnValue(docRef) };
+      mockFirestore.collection.mockReturnValue(collection as any);
+
+      await expect(
+        service.finalizar('proj-fin-nx', 'uid-admin', 'Admin'),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('debe lanzar BadRequestException si el proyecto ya está FINALIZADO', async () => {
+      const docRef = createMockDocumentRef('proj-fin-dup');
+      const snap = createMockDocSnapshot(
+        'proj-fin-dup',
+        makeProyecto({ estado: 'FINALIZADO' }),
+      );
+      docRef.get.mockResolvedValue(snap);
+      setupCollection(docRef);
+
+      await expect(
+        service.finalizar('proj-fin-dup', 'uid-admin', 'Admin'),
+      ).rejects.toThrow(BadRequestException);
+    });
+  });
+
   // ─── remove ────────────────────────────────────────────────────────────────
 
   describe('remove', () => {

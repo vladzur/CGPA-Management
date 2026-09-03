@@ -15,6 +15,7 @@ const projectId = route.params.id as string;
 const isEditing = ref(false);
 const isSubmitting = ref(false);
 const isDeleting = ref(false);
+const isFinalizing = ref(false);
 const errorMsg = ref('');
 const successMsg = ref('');
 
@@ -105,6 +106,43 @@ const deleteProject = async () => {
   }
 };
 
+const finalizarProject = async () => {
+  errorMsg.value = '';
+  successMsg.value = '';
+
+  if (!confirm('¿Estás seguro de finalizar este proyecto?')) return;
+
+  isFinalizing.value = true;
+  try {
+    await apiClient.post(`/proyectos/${projectId}/finalizar`);
+    successMsg.value = 'Proyecto finalizado exitosamente.';
+    setTimeout(() => (successMsg.value = ''), 3000);
+  } catch (error: any) {
+    errorMsg.value =
+      error.response?.data?.message || 'Error al finalizar el proyecto';
+  } finally {
+    isFinalizing.value = false;
+  }
+};
+
+const getEstadoLabel = (estado: string) => {
+  const labels: Record<string, string> = {
+    PLANIFICACION: 'Planificación',
+    EN_CURSO: 'En curso',
+    FINALIZADO: 'Finalizado',
+  };
+  return labels[estado] || estado;
+};
+
+const getEstadoBadgeClass = (estado: string) => {
+  const classes: Record<string, string> = {
+    PLANIFICACION: 'badge-warning',
+    EN_CURSO: 'badge-info',
+    FINALIZADO: 'badge-success',
+  };
+  return classes[estado] || 'badge-ghost';
+};
+
 const formatCurrency = (value: number) => {
   return new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(value || 0);
 };
@@ -161,6 +199,11 @@ const isOverBudget = () => {
 
             <!-- Vista Lectura -->
             <div v-if="!isEditing" class="space-y-4">
+              <div class="flex justify-end">
+                <span class="badge font-medium" :class="getEstadoBadgeClass(project.estado)">
+                  {{ getEstadoLabel(project.estado) }}
+                </span>
+              </div>
               <div>
                 <span class="text-xs font-bold text-gray-500 uppercase">Nombre</span>
                 <p class="font-medium text-lg text-neutral">{{ project.nombre }}</p>
@@ -207,6 +250,18 @@ const isOverBudget = () => {
               </div>
 
               <div class="mt-6 pt-4 border-t border-base-200">
+                <button
+                  v-if="project.estado !== 'FINALIZADO'"
+                  @click="finalizarProject"
+                  class="btn btn-success btn-sm w-full text-white mb-2"
+                  :disabled="isFinalizing"
+                >
+                  <span v-if="isFinalizing" class="loading loading-spinner"></span>
+                  Finalizar Proyecto
+                </button>
+                <p v-if="project.estado === 'FINALIZADO'" class="text-xs text-success font-bold text-center mb-2">
+                  Proyecto finalizado.
+                </p>
                 <button 
                   @click="deleteProject" 
                   class="btn btn-outline btn-error btn-sm w-full"

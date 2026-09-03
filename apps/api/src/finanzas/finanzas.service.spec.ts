@@ -1,5 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { ConflictException, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { FinanzasService } from './finanzas.service';
 import { AuditService } from '../common/audit/audit.service';
 import { CryptoSealService } from '../common/crypto/crypto-seal.service';
@@ -180,6 +184,7 @@ describe('FinanzasService', () => {
       expect(result.proyecto_actualizado).toEqual({
         id: 'proj-001',
         nuevo_monto_ejecutado: 15000, // 10000 + 5000
+        nuevo_estado: 'EN_CURSO',
       });
       expect(result.numero_secuencia).toBe(1);
       expect(result.hash_integridad).toBe('fake-seal-hash-abc123');
@@ -195,6 +200,47 @@ describe('FinanzasService', () => {
         proyectoRef,
         expect.objectContaining({ monto_ejecutado: 15000 }),
       );
+    });
+
+    it('debe marcar el proyecto como EN_CURSO al registrar un EGRESO', async () => {
+      const { proyectoRef } = setupCollectionRefs();
+      const instSnap = createMockDocSnapshot('liceo_agb', INST_DATA);
+      const proyectoSnap = createMockDocSnapshot('proj-001', PROYECTO_DATA);
+      const mockTxn = setupTransactionRun([instSnap, proyectoSnap]);
+
+      const dto = {
+        ...BASE_DTO,
+        tipo: 'EGRESO' as const,
+        proyecto_id: 'proj-001',
+      };
+      await service.createTransaction(dto, 'uid-1', 'Tester');
+
+      expect(mockTxn.update).toHaveBeenCalledWith(
+        proyectoRef,
+        expect.objectContaining({
+          estado: 'EN_CURSO',
+          monto_ejecutado: 15000,
+        }),
+      );
+    });
+
+    it('debe lanzar BadRequestException si el proyecto ya está FINALIZADO', async () => {
+      setupCollectionRefs();
+      const instSnap = createMockDocSnapshot('liceo_agb', INST_DATA);
+      const proyectoFinalizado = createMockDocSnapshot('proj-001', {
+        ...PROYECTO_DATA,
+        estado: 'FINALIZADO',
+      });
+      setupTransactionRun([instSnap, proyectoFinalizado]);
+
+      const dto = {
+        ...BASE_DTO,
+        tipo: 'EGRESO' as const,
+        proyecto_id: 'proj-001',
+      };
+      await expect(
+        service.createTransaction(dto, 'uid-1', 'Tester'),
+      ).rejects.toThrow(BadRequestException);
     });
 
     it('EGRESO sin proyecto_id solo debe actualizar saldo total', async () => {

@@ -128,6 +128,39 @@ export class ProyectosService {
     return { id, ...updates };
   }
 
+  async finalizar(id: string, userUid: string, userName: string) {
+    const docRef = this.db.collection('proyectos').doc(id);
+    const doc = await docRef.get();
+
+    if (!doc.exists) {
+      throw new NotFoundException(`Proyecto con id ${id} no encontrado`);
+    }
+
+    const data = doc.data() as Proyecto;
+
+    // Se permite finalizar desde cualquier estado no finalizado,
+    // incluso si el presupuesto no se ha ejecutado por completo.
+    if (data.estado === 'FINALIZADO') {
+      throw new BadRequestException('El proyecto ya se encuentra finalizado.');
+    }
+
+    const batch = this.db.batch();
+    batch.update(docRef, { estado: 'FINALIZADO' });
+
+    this.auditService.logActionWithTransactionOrBatch(batch, {
+      usuario_id: userUid,
+      nombre_usuario: userName,
+      accion: 'FINALIZAR_PROYECTO',
+      coleccion: 'proyectos',
+      documento_id: id,
+      payload_anterior: data,
+      payload_nuevo: { estado: 'FINALIZADO' },
+    });
+
+    await batch.commit();
+    return { id, ...data, estado: 'FINALIZADO' };
+  }
+
   async remove(id: string, userUid: string, userName: string) {
     // Solo permitir si no tiene transacciones asociadas (integridad referencial)
     const transaccionesSnapshot = await this.db

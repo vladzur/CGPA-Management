@@ -64,6 +64,24 @@ const getProgress = (proy: any) => {
 const isOverBudget = (proy: any) => {
   return proy.monto_ejecutado > proy.presupuesto_estimado;
 };
+
+const getEstadoLabel = (estado: string) => {
+  const labels: Record<string, string> = {
+    PLANIFICACION: 'Planificación',
+    EN_CURSO: 'En curso',
+    FINALIZADO: 'Finalizado',
+  };
+  return labels[estado] || estado;
+};
+
+const getEstadoBadgeClass = (estado: string) => {
+  const classes: Record<string, string> = {
+    PLANIFICACION: 'badge-warning',
+    EN_CURSO: 'badge-info',
+    FINALIZADO: 'badge-success',
+  };
+  return classes[estado] || 'badge-ghost';
+};
 </script>
 
 <template>
@@ -88,7 +106,12 @@ const isOverBudget = (proy: any) => {
         </div>
 
         <div class="card-body">
-          <h2 class="card-title text-xl text-neutral mb-2">{{ proy.nombre }}</h2>
+          <div class="flex items-center justify-between gap-2 mb-2">
+            <h2 class="card-title text-xl text-neutral">{{ proy.nombre }}</h2>
+            <span class="badge badge-sm font-medium" :class="getEstadoBadgeClass(proy.estado)">
+              {{ getEstadoLabel(proy.estado) }}
+            </span>
+          </div>
           <p class="text-gray-600 text-sm line-clamp-2 mb-4">{{ proy.descripcion }}</p>
           
           <div class="flex justify-between text-sm mb-1">
