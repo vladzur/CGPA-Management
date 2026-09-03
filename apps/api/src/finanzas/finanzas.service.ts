@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   ConflictException,
+  BadRequestException,
 } from '@nestjs/common';
 import * as admin from 'firebase-admin';
 import { Transaccion, Proyecto } from '@cgpa/shared';
@@ -89,6 +90,14 @@ export class FinanzasService {
         let nuevoMontoEjecutadoProyecto = 0;
         if (proyectoDoc && dto.tipo === 'EGRESO') {
           const proyectoData = proyectoDoc.data() as Proyecto;
+
+          // No se permiten gastos sobre un proyecto que ya fue finalizado
+          if (proyectoData.estado === 'FINALIZADO') {
+            throw new BadRequestException(
+              'No se puede registrar un gasto hacia un proyecto finalizado.',
+            );
+          }
+
           nuevoMontoEjecutadoProyecto =
             (proyectoData.monto_ejecutado || 0) + dto.monto;
         }
@@ -129,10 +138,12 @@ export class FinanzasService {
           ultima_actualizacion: admin.firestore.FieldValue.serverTimestamp(),
         });
 
-        // Solo sumamos al monto ejecutado si es un gasto (EGRESO) del proyecto
+        // Solo sumamos al monto ejecutado si es un gasto (EGRESO) del proyecto.
+        // Al registrar un gasto, el proyecto pasa automáticamente a EN_CURSO.
         if (proyectoRef && dto.tipo === 'EGRESO') {
           t.update(proyectoRef, {
             monto_ejecutado: nuevoMontoEjecutadoProyecto,
+            estado: 'EN_CURSO',
           });
         }
 
@@ -157,12 +168,16 @@ export class FinanzasService {
               ? {
                   id: proyectoRef.id,
                   nuevo_monto_ejecutado: nuevoMontoEjecutadoProyecto,
+                  nuevo_estado: 'EN_CURSO',
                 }
               : null,
         };
       });
     } catch (error: any) {
-      if (error instanceof NotFoundException) {
+      if (
+        error instanceof NotFoundException ||
+        error instanceof BadRequestException
+      ) {
         throw error;
       }
       // Los fallos de contención (exceso de retries) en transacciones lanzan errores genéricos.
