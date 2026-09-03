@@ -64,6 +64,11 @@ export class ProyectosController {
     );
   }
 
+  @Post(':id/finalizar')
+  finalizar(@Param('id') id: string, @Req() req: any) {
+    return this.proyectosService.finalizar(id, req.user.uid, req.user.name);
+  }
+
   @Delete(':id')
   remove(@Param('id') id: string, @Req() req: any) {
     return this.proyectosService.remove(id, req.user.uid, req.user.name);
