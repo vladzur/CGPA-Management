@@ -15,8 +15,13 @@ export const useFinanzasStore = defineStore('finanzas', () => {
   let unsubscribeTrans: () => void;
 
   function init() {
-    loading.value = true;
-    
+    // El indicador de carga solo se activa si todavía no hay datos. Cuando la
+    // página llega prerenderizada con el saldo ya visible, reactivarlo provocaría
+    // el parpadeo "número → spinner → número" al montar la aplicación.
+    if (!institucion.value) {
+      loading.value = true;
+    }
+
     const instRef = doc(db, 'configuracion', 'liceo_agb');
     unsubscribeInst = onSnapshot(instRef, (snapshot) => {
       if (snapshot.exists()) {

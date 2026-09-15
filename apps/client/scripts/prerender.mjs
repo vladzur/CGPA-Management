@@ -49,6 +49,9 @@ const MIME_TYPES = {
 
 const SETTLE_MS = Number(process.env.PRERENDER_SETTLE_MS ?? 400);
 
+/** Espera máxima a que los bloques con datos dinámicos terminen de resolverse. */
+const DATA_TIMEOUT_MS = Number(process.env.PRERENDER_DATA_TIMEOUT_MS ?? 8000);
+
 /** Ubicaciones habituales del binario de Chrome según plataforma. */
 function chromeCandidates() {
   const fromEnv = [
@@ -218,6 +221,23 @@ async function main() {
           .catch(() => {
             console.warn(
               `[prerender] ${route.path}: la aplicación no emitió la señal de listo; se captura el estado actual.`,
+            );
+          });
+
+        // Espera best-effort a que los bloques con datos (saldo, movimientos,
+        // proyectos, comunicados) terminen de resolverse. Sin esta espera, un build
+        // en el que Firestore responda lento grabaría un indicador de carga en el
+        // HTML estático, y sin JavaScript quedaría visible de forma permanente.
+        await page
+          .waitForFunction(
+            () =>
+              document.querySelectorAll('.loading-spinner, .loading-bars')
+                .length === 0,
+            { timeout: DATA_TIMEOUT_MS },
+          )
+          .catch(() => {
+            console.warn(
+              `[prerender] ${route.path}: quedaron indicadores de carga visibles; se captura el estado actual.`,
             );
           });
 

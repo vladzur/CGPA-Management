@@ -74,6 +74,7 @@ institucional esté presente en el HTML sin depender de JavaScript.
 | `CHROME_PATH` | Ruta al binario de Chrome cuando no se detecta automáticamente. |
 | `PRERENDER_STRICT=1` | Hace fallar el build si no hay Chrome disponible. |
 | `PRERENDER_SETTLE_MS` | Espera adicional antes de capturar el HTML (por defecto 400 ms). |
+| `PRERENDER_DATA_TIMEOUT_MS` | Espera máxima a que se resuelvan los bloques con datos dinámicos, para no grabar un indicador de carga en el HTML estático (por defecto 8000 ms). |
 
 Los runners `ubuntu-latest` de GitHub Actions ya incluyen Chrome. Si el script no encuentra un
 navegador, omite el prerender con una advertencia y el build continúa (salvo `PRERENDER_STRICT=1`).
