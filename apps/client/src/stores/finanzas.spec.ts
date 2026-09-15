@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
 
 /**
@@ -152,5 +152,100 @@ describe('finanzas store', () => {
     store.cleanup();
 
     expect(unsubscribe).toHaveBeenCalledTimes(3);
+  });
+
+  describe('hydrate', () => {
+    const INITIAL_STATE = {
+      institucion: {
+        nombre: 'Centro General de Padres AGB',
+        periodo_actual: '2026',
+        saldo_total: 1250000,
+        ultima_actualizacion: '2026-08-01T10:00:00.000Z',
+      },
+      proyectos: [{ id: 'p1', nombre: 'Patio techado' }],
+      transacciones: [{ id: 't1', tipo: 'INGRESO', monto: 500000 }],
+    };
+
+    it('should seed the store with the state embedded in the prerendered html', () => {
+      const store = useFinanzasStore();
+
+      store.hydrate(INITIAL_STATE);
+
+      expect(store.institucion?.saldo_total).toBe(1250000);
+      expect(store.proyectos).toHaveLength(1);
+      expect(store.transacciones).toHaveLength(1);
+    });
+
+    it('should turn the loading indicator off when the balance was embedded', () => {
+      const store = useFinanzasStore();
+      expect(store.loading).toBe(true);
+
+      store.hydrate(INITIAL_STATE);
+
+      expect(store.loading).toBe(false);
+    });
+
+    it('should keep the loading indicator on when no balance was embedded', () => {
+      const store = useFinanzasStore();
+
+      store.hydrate({ institucion: null, proyectos: [], transacciones: [] });
+
+      expect(store.loading).toBe(true);
+    });
+
+    it('should not bring the loading indicator back on the first init', () => {
+      // Secuencia real al abrir una página prerenderizada: hidratar y luego montar.
+      const store = useFinanzasStore();
+      store.hydrate(INITIAL_STATE);
+
+      store.init();
+
+      expect(store.loading).toBe(false);
+      expect(store.institucion?.saldo_total).toBe(1250000);
+    });
+  });
+
+  describe('prerender state', () => {
+    afterEach(() => {
+      delete (window as any).__PRERENDER__;
+      delete (window as any).__PRERENDER_STATE__;
+    });
+
+    it('should publish the resolved state with dates serialized as ISO strings', () => {
+      (window as any).__PRERENDER__ = true;
+
+      const store = useFinanzasStore();
+      store.init();
+      snapshotCallbacks[0](existingSnapshot(INSTITUTION_DATA));
+
+      const published = (window as any).__PRERENDER_STATE__;
+
+      expect(published.institucion.saldo_total).toBe(1250000);
+      expect(published.institucion.ultima_actualizacion).toBe(
+        INSTITUTION_DATA.ultima_actualizacion.toISOString(),
+      );
+      expect(published.proyectos).toEqual([]);
+      expect(published.transacciones).toEqual([]);
+    });
+
+    it('should survive a JSON round trip so the prerender can embed it', () => {
+      (window as any).__PRERENDER__ = true;
+
+      const store = useFinanzasStore();
+      store.init();
+      snapshotCallbacks[0](existingSnapshot(INSTITUTION_DATA));
+      snapshotCallbacks[2](
+        collectionSnapshot([
+          { id: 't1', data: { tipo: 'INGRESO', monto: 500000, fecha: new Date('2026-08-01T10:00:00Z') } },
+        ]),
+      );
+
+      const restored = JSON.parse(
+        JSON.stringify((window as any).__PRERENDER_STATE__),
+      );
+
+      expect(restored.institucion.saldo_total).toBe(1250000);
+      expect(restored.transacciones[0].fecha).toBe('2026-08-01T10:00:00.000Z');
+    });
   });
 });

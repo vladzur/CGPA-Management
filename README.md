@@ -79,6 +79,12 @@ institucional esté presente en el HTML sin depender de JavaScript.
 Los runners `ubuntu-latest` de GitHub Actions ya incluyen Chrome. Si el script no encuentra un
 navegador, omite el prerender con una advertencia y el build continúa (salvo `PRERENDER_STRICT=1`).
 
+El script guarda en `dist/.prerender-shell.html` una copia normalizada de la plantilla generada por
+Vite, que reutiliza mientras no se vuelva a compilar. Eso lo hace determinista: ejecutarlo dos veces
+seguidas produce exactamente los mismos archivos. `vite build` vacía el directorio, así que la
+plantilla siempre se regenera tras cada compilación. Firebase Hosting no publica ese archivo porque
+las reglas de `firebase.json` ignoran los nombres que empiezan por punto.
+
 > Checklist de cumplimiento para la postulación: [google-workspace-nonprofits-checklist.md](docs/google-workspace-nonprofits-checklist.md)
 
 ---

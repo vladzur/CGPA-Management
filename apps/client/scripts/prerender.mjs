@@ -8,13 +8,19 @@
  * personalidad jurídica y domicilio) esté presente en el HTML sin depender de
  * JavaScript. Ese es uno de los requisitos que evalúa Google for Nonprofits.
  *
+ * Además graba el estado ya resuelto (saldo, proyectos y movimientos) dentro del
+ * HTML, para que la aplicación lo use como estado inicial al montar. Sin eso, Vue
+ * descartaría el contenido prerenderizado y volvería a mostrar un indicador de carga
+ * hasta que Firestore responda.
+ *
  * Uso:
  *   node scripts/prerender.mjs
  *
  * Variables de entorno:
- *   CHROME_PATH        Ruta al binario de Chrome (si no se detecta automáticamente).
- *   PRERENDER_STRICT   Si vale `1`, la ausencia de Chrome hace fallar el build.
+ *   CHROME_PATH          Ruta al binario de Chrome si no se detecta automáticamente.
+ *   PRERENDER_STRICT     Si vale `1`, la ausencia de Chrome hace fallar el build.
  *   PRERENDER_SETTLE_MS  Espera adicional tras la carga, antes de capturar el HTML.
+ *   PRERENDER_DATA_TIMEOUT_MS  Espera máxima a que se resuelvan los datos dinámicos.
  */
 import { createServer } from 'node:http';
 import { existsSync } from 'node:fs';
@@ -78,10 +84,120 @@ function findChrome() {
 }
 
 /**
+ * Marca que el servidor inserta en el HTML que entrega durante el prerender.
+ * La aplicación la detecta para publicar su estado ya resuelto.
+ */
+const PRERENDER_FLAG_SCRIPT = '<script>window.__PRERENDER__=true;</script>';
+
+/** Prefijo del script con el estado que se incrusta en el HTML final. */
+const INITIAL_STATE_OPEN = '<script>window.__INITIAL_STATE__=';
+const SCRIPT_CLOSE = '</script>';
+
+/** Inserta contenido al final del `<head>`, o al inicio si no lo encuentra. */
+function injectIntoHead(html, content) {
+  return html.includes('</head>')
+    ? html.replace('</head>', `  ${content}\n  </head>`)
+    : `${content}${html}`;
+}
+
+/**
+ * Elimina el estado y la marca que haya inyectado una ejecución anterior.
+ * Sin esto el script no sería idempotente: al ejecutarlo dos veces seguidas sobre
+ * el mismo `dist/`, cada pasada acumularía una copia más del estado incrustado.
+ */
+/**
+ * Quita los artefactos que inyecta el propio prerender: la marca de captura y el
+ * estado incrustado. Se aplica tanto a la plantilla como al HTML capturado, de modo
+ * que el resultado no dependa de lo que ya hubiera en `dist/` ni de una respuesta
+ * servida por el service worker de una ejecución anterior.
+ */
+function stripInjectedArtifacts(html) {
+  let result = html.split(PRERENDER_FLAG_SCRIPT).join('');
+
+  let start = result.indexOf(INITIAL_STATE_OPEN);
+  while (start !== -1) {
+    const end = result.indexOf(SCRIPT_CLOSE, start);
+    if (end === -1) break;
+
+    result =
+      result.slice(0, start) + result.slice(end + SCRIPT_CLOSE.length);
+    start = result.indexOf(INITIAL_STATE_OPEN);
+  }
+
+  return result;
+}
+
+/**
+ * Copia normalizada de la plantilla que Vite genera, guardada dentro de `dist/`.
+ * El nombre empieza por punto, así que Firebase Hosting no la publica.
+ */
+const SHELL_FILE = '.prerender-shell.html';
+
+/**
+ * Devuelve la plantilla que se sirve durante la captura.
+ * Se reutiliza entre ejecuciones y solo se regenera cuando `vite build` vacía el
+ * directorio. Gracias a eso el prerender es determinista: ejecutarlo dos veces
+ * seguidas sin recompilar produce exactamente los mismos archivos, en lugar de
+ * acumular el estado y las precargas del resultado anterior.
+ */
+async function resolveShell() {
+  const shellPath = path.join(distDir, SHELL_FILE);
+
+  if (!existsSync(shellPath)) {
+    const shell = stripInjectedArtifacts(
+      await readFile(path.join(distDir, 'index.html'), 'utf8'),
+    );
+
+    await writeFile(shellPath, shell, 'utf8');
+  }
+
+  return shellPath;
+}
+
+/**
+ * Graba el estado ya resuelto dentro del HTML para que la aplicación lo use como
+ * estado inicial. Sin esto, Vue descartaría el contenido prerenderizado al montar
+ * y volvería a pintar un indicador de carga hasta que Firestore responda.
+ */
+function withInitialState(html, state) {
+  if (!state) return html;
+
+  // Se escapa `<` para que el JSON no pueda cerrar la etiqueta script.
+  const serialized = JSON.stringify(state).replaceAll(
+    '<',
+    String.raw`\u003c`,
+  );
+
+  return injectIntoHead(
+    html,
+    `<script>window.__INITIAL_STATE__=${serialized};</script>`,
+  );
+}
+
+/**
+ * Vite resuelve las URLs de los chunks que precarga en tiempo de ejecución, así que
+ * al serializar el DOM quedan con el origen absoluto del servidor de prerender. Se
+ * convierten en rutas relativas a la raíz para que apunten al dominio real y no al
+ * puerto efímero de la máquina que generó el build.
+ */
+function normalizeLocalOrigin(html, port) {
+  return html.split(`http://127.0.0.1:${port}`).join('');
+}
+
+/** Deja el HTML capturado listo para publicarse. */
+function finalizeHtml(html, state, port) {
+  return withInitialState(
+    stripInjectedArtifacts(normalizeLocalOrigin(html, port)),
+    state,
+  );
+}
+
+/**
  * Servidor estático mínimo sobre `dist/`, con la misma caída a `index.html`
  * que usa Firebase Hosting para las rutas de la SPA.
+ * Las páginas HTML se resuelven siempre desde `shellPath`, la plantilla original.
  */
-function startStaticServer() {
+function startStaticServer(shellPath) {
   const server = createServer(async (request, response) => {
     const requestedPath = decodeURIComponent(
       (request.url ?? '/').split('?')[0],
@@ -92,19 +208,33 @@ function startStaticServer() {
     const isInsideDist =
       resolved === distDir || resolved.startsWith(`${distDir}${path.sep}`);
 
-    let filePath = isInsideDist && existsSync(resolved) ? resolved : null;
+    // Solo se sirven activos; las páginas HTML se resuelven desde la plantilla, incluido
+    // `/index.html`, porque el service worker la solicita para su respaldo de navegación.
+    const extension = path.extname(resolved);
+    const isAssetRequest = Boolean(extension) && extension !== '.html';
+
+    let filePath =
+      isAssetRequest && isInsideDist && existsSync(resolved) ? resolved : null;
 
     if (filePath) {
-      const stats = await readFile(filePath)
+      const exists = await readFile(filePath)
         .then(() => true)
         .catch(() => false);
-      if (!stats) filePath = null;
+      if (!exists) filePath = null;
     }
 
-    if (!filePath) filePath = path.join(distDir, 'index.html');
+    if (!filePath) filePath = shellPath;
 
     try {
-      const body = await readFile(filePath);
+      const isHtml = path.extname(filePath) === '.html';
+      const raw = await readFile(filePath);
+      const body = isHtml
+        ? Buffer.from(
+            injectIntoHead(raw.toString('utf8'), PRERENDER_FLAG_SCRIPT),
+            'utf8',
+          )
+        : raw;
+
       response.writeHead(200, {
         'Content-Type':
           MIME_TYPES[path.extname(filePath)] ?? 'application/octet-stream',
@@ -184,9 +314,10 @@ async function main() {
   let browser;
   let server;
   let port;
+  const shellPath = await resolveShell();
 
   try {
-    ({ server, port } = await startStaticServer());
+    ({ server, port } = await startStaticServer(shellPath));
     const { default: puppeteer } = await import('puppeteer-core');
 
     browser = await puppeteer.launch({
@@ -248,9 +379,16 @@ async function main() {
 
         await new Promise((resolve) => setTimeout(resolve, SETTLE_MS));
 
+        const html = await page.content();
+
+        // Estado ya resuelto por la aplicación, que se graba dentro del HTML.
+        const resolvedState = await page
+          .evaluate(() => window.__PRERENDER_STATE__ ?? null)
+          .catch(() => null);
+
         rendered.set(
           publicRouteOutputFile(route.path),
-          await page.content(),
+          finalizeHtml(html, resolvedState, port),
         );
 
         console.log(
