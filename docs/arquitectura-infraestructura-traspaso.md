@@ -10,7 +10,7 @@ La plataforma corre íntegramente sobre **Google Cloud Platform (GCP)** a travé
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                    google.com/cgpa-liceo-agb                     │
+│                    cgpagrahambell.cl                             │
 │                                                                  │
 │  ┌──────────────────────┐    ┌──────────────────────────────┐   │
 │  │   Firebase Hosting    │    │      Google Cloud Run         │   │
@@ -82,7 +82,7 @@ Google for Nonprofits está disponible en Chile. El CGPA (como corporación sin 
 
 Una vez aprobado:
 
-1. Se crea el Workspace con dominio propio (ej: `admin@cgpaliceoagb.cl`)
+1. Se crea el Workspace con dominio propio (`cgpagrahambell.cl`, ya registrado y conectado a Firebase Hosting)
 2. Se crea la **organización GCP** asociada al Workspace
 3. Se migra el proyecto Firebase/GCP desde `@gmail.com` a la organización usando [GCP Resource Manager](https://cloud.google.com/resource-manager/docs/project-migration)
 4. Se actualiza la facturación a la cuenta del Workspace
@@ -112,7 +112,7 @@ Una vez aprobado:
 
 | Servicio | Uso | Región |
 |---|---|---|
-| Firebase Hosting | Servir el frontend SPA/PWA | Global (CDN) |
+| Firebase Hosting | Servir el frontend (páginas institucionales prerenderizadas + SPA/PWA) | Global (CDN) |
 | Cloud Run | Ejecutar el backend NestJS | `southamerica-west1` |
 | Cloud Firestore (Native) | Base de datos principal NoSQL | `southamerica-west1` |
 | Firebase Authentication | Login de usuarios (email/password) | Global |
@@ -126,14 +126,24 @@ Una vez aprobado:
 
 | Tipo | Valor |
 |---|---|
-| **Dominio principal** | [COMPLETAR — ej: cgpa-liceo-agb.web.app] |
-| **Dominio personalizado** | [COMPLETAR — si existe dominio propio configurado en Firebase Hosting] |
-| **URL del frontend (prod)** | `https://cgpa-liceo-agb.web.app` |
+| **Dominio principal** | `cgpagrahambell.cl` (dominio personalizado conectado a Firebase Hosting) |
+| **Dominio personalizado** | `cgpagrahambell.cl` |
+| **URL del frontend (prod)** | `https://cgpagrahambell.cl` |
+| **URL del frontend (Firebase)** | `https://cgpa-liceo-agb.web.app` |
 | **URL del backend (prod)** | `https://api-xxxxx-uc.a.run.app` (Cloud Run asigna subdominio automático) |
 | **Firebase Hosting domain** | `cgpa-liceo-agb.web.app` (automático) |
 | **Firebase Hosting domain** | `cgpa-liceo-agb.firebaseapp.com` (automático) |
 
-> **Nota:** Si se requiere un dominio personalizado (ej: `cgpaliceoagb.cl`), debe configurarse en Firebase Hosting Console > Dominios personalizados. Implica verificar propiedad del dominio y añadir registros DNS A y TXT.
+> **Nota:** `cgpagrahambell.cl` es el dominio oficial que se declara en la postulación a Google
+> Workspace for Nonprofits. Su cumplimiento se documenta en
+> [google-workspace-nonprofits-checklist.md](google-workspace-nonprofits-checklist.md). Las URLs
+> de Firebase Hosting siguen activas, de modo que los códigos QR y enlaces antiguos continúan
+> funcionando.
+>
+> El cliente se publica con `cleanUrls` habilitado y con las páginas públicas prerenderizadas
+> (`dist/index.html`, `dist/nosotros.html`, `dist/proyectos.html`, `dist/transparencia.html`,
+> `dist/comunicados.html`, `dist/contacto.html`), de manera que el contenido institucional está
+> presente en el HTML servido sin depender de JavaScript.
 
 ---
 
@@ -191,6 +201,7 @@ Estas variables se inyectan en el deploy desde el pipeline `release-deploy.yml` 
 | `auditoria` | Registro de auditoría (quién hizo qué) | Solo ADMIN | Solo backend |
 | `comunicados` | Comunicados publicados | Pública | Solo backend |
 | `documentos` | Documentos oficiales | Pública | Solo backend |
+| `mensajes` | Mensajes recibidos desde el formulario de contacto del sitio | Solo ADMIN activo | Solo backend |
 
 ### Índices compuestos activos
 
@@ -205,7 +216,7 @@ Estas variables se inyectan en el deploy desde el pipeline `release-deploy.yml` 
 |---|---|
 | **Método de sign-in habilitado** | Email/Password |
 | **Otros métodos** | Ninguno (sin Google, Facebook, etc.) |
-| **Dominios autorizados** | `cgpa-liceo-agb.web.app`, `cgpa-liceo-agb.firebaseapp.com` (y dominios personalizados si los hay) |
+| **Dominios autorizados** | `cgpagrahambell.cl`, `cgpa-liceo-agb.web.app`, `cgpa-liceo-agb.firebaseapp.com` |
 
 ### Roles (Custom Claims)
 

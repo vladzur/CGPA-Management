@@ -15,8 +15,11 @@ import { ProyectosService } from '../src/proyectos/proyectos.service';
 import { UsuariosService } from '../src/usuarios/usuarios.service';
 import { ComunicadosController } from '../src/comunicados/comunicados.controller';
 import { ComunicadosService } from '../src/comunicados/comunicados.service';
+import { MensajesController } from '../src/mensajes/mensajes.controller';
+import { MensajesService } from '../src/mensajes/mensajes.service';
 import { StorageService } from '../src/storage/storage.service';
 import { AuditService } from '../src/common/audit/audit.service';
+import { CryptoSealService } from '../src/common/crypto/crypto-seal.service';
 
 @Module({
   controllers: [
@@ -25,6 +28,7 @@ import { AuditService } from '../src/common/audit/audit.service';
     ProyectosController,
     UsuariosController,
     ComunicadosController,
+    MensajesController,
   ],
   providers: [
     AppService,
@@ -32,8 +36,10 @@ import { AuditService } from '../src/common/audit/audit.service';
     ProyectosService,
     UsuariosService,
     ComunicadosService,
+    MensajesService,
     StorageService,
     AuditService,
+    CryptoSealService,
   ],
 })
 export class TestAppModule {}

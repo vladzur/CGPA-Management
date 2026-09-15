@@ -1,0 +1,10 @@
+User-agent: *
+Allow: /
+
+# Rutas internas de gestión y autenticación
+Disallow: /admin
+Disallow: /login
+Disallow: /registro-interno-agb
+Disallow: /validar/
+
+Sitemap: https://cgpagrahambell.cl/sitemap.xml

@@ -1,10 +1,95 @@
 <!doctype html>
-<html lang="en" data-theme="light">
+<html lang="es" data-theme="light">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>client</title>
+
+    <!-- Identidad del sitio. Las rutas internas sobrescriben estos valores con usePageMeta. -->
+    <title>CGPA Graham Bell — Centro General de Padres y Apoderados Liceo Alexander Graham Bell</title>
+    <meta
+      name="description"
+      content="Sitio oficial del Centro General de Padres y Apoderados del Liceo Alexander Graham Bell de Villarrica: misión, proyectos, comunicados y rendición de cuentas."
+    />
+    <meta
+      name="author"
+      content="Centro General de Padres y Apoderados Liceo Alexander Graham Bell"
+    />
+    <meta name="theme-color" content="#0D47A1" />
+    <link rel="canonical" href="https://cgpagrahambell.cl/" />
+
+    <!-- Iconos -->
+    <link rel="icon" href="/favicon.ico" sizes="48x48" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="CGPA Graham Bell" />
+    <meta property="og:locale" content="es_CL" />
+    <meta
+      property="og:title"
+      content="CGPA Graham Bell — Centro General de Padres y Apoderados Liceo Alexander Graham Bell"
+    />
+    <meta
+      property="og:description"
+      content="Sitio oficial del Centro General de Padres y Apoderados del Liceo Alexander Graham Bell de Villarrica: misión, proyectos, comunicados y rendición de cuentas."
+    />
+    <meta property="og:url" content="https://cgpagrahambell.cl/" />
+    <meta property="og:image" content="https://cgpagrahambell.cl/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta
+      property="og:image:alt"
+      content="Escudo del Centro General de Padres y Apoderados Liceo Alexander Graham Bell"
+    />
+
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta
+      name="twitter:title"
+      content="CGPA Graham Bell — Centro General de Padres y Apoderados Liceo Alexander Graham Bell"
+    />
+    <meta
+      name="twitter:description"
+      content="Sitio oficial del Centro General de Padres y Apoderados del Liceo Alexander Graham Bell de Villarrica."
+    />
+    <meta name="twitter:image" content="https://cgpagrahambell.cl/og-image.png" />
+
+    <!--
+      Datos estructurados de la organización.
+      Declaran explícitamente el nombre legal, el identificador de personalidad
+      jurídica y el domicilio, que son los datos que permiten asociar el dominio
+      con la organización sin fines de lucro registrada.
+    -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "NGO",
+        "name": "Centro General de Padres y Apoderados Liceo Alexander Graham Bell",
+        "alternateName": "CGPA Graham Bell",
+        "identifier": {
+          "@type": "PropertyValue",
+          "name": "Personalidad Jurídica N°",
+          "value": "242029"
+        },
+        "foundingDate": "2016-05-31",
+        "url": "https://cgpagrahambell.cl/",
+        "logo": "https://cgpagrahambell.cl/logo-cgpa.png",
+        "image": "https://cgpagrahambell.cl/og-image.png",
+        "description": "Organización funcional sin fines de lucro que reúne a las familias del Liceo Alexander Graham Bell para apoyar la formación integral de los estudiantes, financiar proyectos de infraestructura y material educativo, y administrar esos recursos con transparencia.",
+        "address": {
+          "@type": "PostalAddress",
+          "streetAddress": "San Ramón N° 2055",
+          "addressLocality": "Villarrica",
+          "addressRegion": "Región de La Araucanía",
+          "addressCountry": "CL"
+        },
+        "areaServed": {
+          "@type": "Place",
+          "name": "Villarrica, Región de La Araucanía, Chile"
+        }
+      }
+    </script>
   </head>
   <body>
     <div id="app"></div>

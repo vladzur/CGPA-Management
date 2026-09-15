@@ -9,4 +9,7 @@ const app = createApp(App)
 app.use(createPinia())
 app.use(router)
 
+// Se monta recién cuando la ruta inicial está resuelta: así la vista (y los
+// metadatos que define) ya existen cuando el prerender captura el HTML.
+await router.isReady()
 app.mount('#app')

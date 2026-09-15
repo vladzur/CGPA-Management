@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
-import axios from 'axios';
+import apiClient from '../plugins/axios';
 import MarkdownRenderer from '../components/MarkdownRenderer.vue';
+import { usePageMeta } from '../composables/usePageMeta';
+
+usePageMeta('PublicAnnouncements');
 
 interface Comunicado {
   id: string;
@@ -35,10 +38,12 @@ const formatearFecha = (timestamp: any): string => {
 const fetchComunicados = async () => {
   loading.value = true;
   try {
-    const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
-    const res = await axios.get(`${baseURL}/api/comunicados/publicos`);
+    // El cliente compartido ya incorpora el prefijo /api de VITE_API_URL.
+    const res = await apiClient.get('/comunicados/publicos');
     comunicados.value = res.data;
-  } catch (err: any) {
+  } catch {
+    // La página debe seguir siendo útil aunque la API no responda: se muestra el
+    // estado vacío en lugar de propagar el error al usuario.
     comunicados.value = [];
   } finally {
     loading.value = false;
@@ -58,7 +63,8 @@ onMounted(() => {
         <div class="max-w-2xl">
           <h1 class="text-4xl font-bold mb-4">Comunicados CGPA</h1>
           <p class="text-lg opacity-90">
-            Informacion oficial del Centro General de Padres y Apoderados del Liceo AGB
+            Información oficial del Centro General de Padres y Apoderados del Liceo
+            Alexander Graham Bell
           </p>
         </div>
       </div>
@@ -72,8 +78,14 @@ onMounted(() => {
     <!-- Sin comunicados -->
     <div v-else-if="comunicados.length === 0" class="text-center py-12">
       <div class="text-6xl mb-4 opacity-30">📋</div>
-      <h2 class="text-2xl font-bold text-gray-500 mb-2">No hay comunicados publicados</h2>
-      <p class="text-gray-400">No hay comunicados disponibles en este momento. Vuelve a revisar mas tarde.</p>
+      <h2 class="text-2xl font-bold text-gray-500 mb-2">
+        Aún no hay comunicados publicados
+      </h2>
+      <p class="text-gray-400 max-w-2xl mx-auto">
+        La directiva publica en esta sección los avisos oficiales dirigidos a las
+        familias del Liceo Alexander Graham Bell. Los comunicados anteriores quedan
+        disponibles de forma permanente una vez publicados.
+      </p>
     </div>
 
     <!-- Lista de comunicados -->

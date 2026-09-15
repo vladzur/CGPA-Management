@@ -12,6 +12,7 @@ import { UsuariosModule } from './usuarios/usuarios.module';
 import { ComunicadosModule } from './comunicados/comunicados.module';
 import { DocumentosModule } from './documentos/documentos.module';
 import { LibroBalanceModule } from './libro-balance/libro-balance.module';
+import { MensajesModule } from './mensajes/mensajes.module';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { LibroBalanceModule } from './libro-balance/libro-balance.module';
     ComunicadosModule,
     DocumentosModule,
     LibroBalanceModule,
+    MensajesModule,
   ],
   controllers: [AppController, TransactionsController],
   providers: [AppService, FinanzasService, StorageService],

@@ -54,6 +54,18 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    // Mensajes del formulario de contacto del sitio institucional.
+    // Contienen datos personales de los apoderados: solo la directiva puede
+    // leerlos, y se exige tanto el rol ADMIN como la cuenta activa (mismo
+    // criterio que aplica el AdminGuard del backend). La escritura queda
+    // reservada al Admin SDK.
+    match /mensajes/{mensajeId} {
+      allow read: if request.auth != null
+                  && request.auth.token.role == 'ADMIN'
+                  && request.auth.token.activo == true;
+      allow write: if false;
+    }
+
     // Auditoría: solo lectura para ADMIN, escrituras vía backend (Admin SDK)
     match /auditoria/{document=**} {
       allow read: if request.auth != null && request.auth.token.role == 'ADMIN';

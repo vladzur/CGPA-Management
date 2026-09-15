@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
-import axios from 'axios';
+import apiClient from '../plugins/axios';
 
 interface DocumentoVerificacion {
   valido: boolean;
@@ -50,11 +50,13 @@ const fetchDocumento = async () => {
   loading.value = true;
   error.value = '';
   try {
-    const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
     const uuid = route.params.uuid as string;
-    const res = await axios.get(`${baseURL}/documentos/validar/${uuid}`);
+    // El cliente compartido ya incorpora el prefijo /api de VITE_API_URL.
+    const res = await apiClient.get(`/documentos/validar/${uuid}`);
     documento.value = res.data;
-  } catch (err: any) {
+  } catch {
+    // Se informa al usuario sin propagar la excepción: la página debe seguir
+    // operativa aunque el servidor de verificación no responda.
     error.value = 'No se pudo conectar con el servidor de verificación.';
   } finally {
     loading.value = false;
@@ -74,7 +76,7 @@ onMounted(() => {
         Verificación de Documento
       </h1>
       <p class="text-gray-500">
-        Centro General de Padres y Apoderados — Liceo AGB
+        Centro General de Padres y Apoderados — Liceo Alexander Graham Bell
       </p>
     </div>
 

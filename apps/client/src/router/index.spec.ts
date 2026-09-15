@@ -18,8 +18,8 @@ vi.mock('../layouts/AdminLayout.vue', () => ({
   default: { template: '<div class="admin-layout"><slot /><router-view /></div>' },
 }));
 
-vi.mock('../views/PublicView.vue', () => ({
-  default: { template: '<div class="public-view" />' },
+vi.mock('../layouts/PublicLayout.vue', () => ({
+  default: { template: '<div class="public-layout"><slot /><router-view /></div>' },
 }));
 
 vi.mock('../views/Login.vue', () => ({
@@ -50,6 +50,30 @@ vi.mock('../views/admin/AdminUsers.vue', () => ({
   default: { template: '<div class="admin-users" />' },
 }));
 
+vi.mock('../views/Home.vue', () => ({
+  default: { template: '<div class="home-view" />' },
+}));
+
+vi.mock('../views/About.vue', () => ({
+  default: { template: '<div class="about-view" />' },
+}));
+
+vi.mock('../views/PublicProjects.vue', () => ({
+  default: { template: '<div class="public-projects-view" />' },
+}));
+
+vi.mock('../views/Transparency.vue', () => ({
+  default: { template: '<div class="transparency-view" />' },
+}));
+
+vi.mock('../views/Contact.vue', () => ({
+  default: { template: '<div class="contact-view" />' },
+}));
+
+vi.mock('../views/admin/AdminMessages.vue', () => ({
+  default: { template: '<div class="admin-messages" />' },
+}));
+
 vi.mock('../views/admin/ComunicadosAdmin.vue', () => ({
   default: { template: '<div class="comunicados-admin" />' },
 }));
@@ -72,24 +96,49 @@ describe('Router', () => {
   });
 
   describe('rutas públicas', () => {
-    it('debe resolver la ruta raíz', () => {
-      const resolved = router.resolve('/');
-      expect(resolved.name).toBe('PublicView');
+    it('debe resolver la portada institucional', () => {
+      expect(router.resolve('/').name).toBe('Home');
     });
 
-    it('debe resolver la ruta de login', () => {
-      const resolved = router.resolve('/login');
-      expect(resolved.name).toBe('Login');
+    it('debe resolver la página de la organización', () => {
+      expect(router.resolve('/nosotros').name).toBe('About');
     });
 
-    it('debe resolver la ruta de registro', () => {
-      const resolved = router.resolve('/registro-interno-agb');
-      expect(resolved.name).toBe('Register');
+    it('debe resolver el listado público de proyectos', () => {
+      expect(router.resolve('/proyectos').name).toBe('PublicProjects');
+    });
+
+    it('debe resolver la página de transparencia', () => {
+      expect(router.resolve('/transparencia').name).toBe('Transparency');
     });
 
     it('debe resolver la ruta de comunicados públicos', () => {
-      const resolved = router.resolve('/comunicados');
-      expect(resolved.name).toBe('ComunicadosPublic');
+      expect(router.resolve('/comunicados').name).toBe('PublicAnnouncements');
+    });
+
+    it('debe resolver la ruta de contacto', () => {
+      expect(router.resolve('/contacto').name).toBe('Contact');
+    });
+
+    it('debe resolver la ruta de login', () => {
+      expect(router.resolve('/login').name).toBe('Login');
+    });
+
+    it('debe resolver la ruta de registro', () => {
+      expect(router.resolve('/registro-interno-agb').name).toBe('Register');
+    });
+
+    it('debe resolver la verificación de documentos con su uuid', () => {
+      const resolved = router.resolve('/validar/uuid-123');
+      expect(resolved.name).toBe('ValidarDocumento');
+      expect(resolved.params.uuid).toBe('uuid-123');
+    });
+
+    it('debe anidar las páginas institucionales bajo el layout público', () => {
+      const resolved = router.resolve('/nosotros');
+
+      expect(resolved.matched).toHaveLength(2);
+      expect(resolved.matched[0].path).toBe('/');
     });
   });
 
@@ -119,13 +168,21 @@ describe('Router', () => {
       const resolved = router.resolve('/admin/comunicados');
       expect(resolved.name).toBe('ComunicadosAdmin');
     });
+
+    it('debe resolver la bandeja de mensajes como ruta anidada', () => {
+      const resolved = router.resolve('/admin/mensajes');
+      expect(resolved.name).toBe('AdminMessages');
+    });
   });
 
   describe('redirects de compatibilidad', () => {
-    it('debe tener configurado el redirect de /proyectos a /admin/proyectos', () => {
-      const route = router.getRoutes().find((r: { path: string; redirect?: unknown }) => r.path === '/proyectos');
+    it('no debe redirigir el listado público de proyectos al panel', () => {
+      const route = router
+        .getRoutes()
+        .find((r: { path: string }) => r.path === '/proyectos');
+
       expect(route).toBeDefined();
-      expect(route!.redirect).toBe('/admin/proyectos');
+      expect(route!.redirect).toBeUndefined();
     });
 
     it('debe tener configurado el redirect de /proyectos/:id a /admin/proyectos/:id', () => {
