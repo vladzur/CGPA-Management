@@ -73,7 +73,7 @@ export const ORGANIZATION: Organization = {
     status: 'Vigente',
   },
   address: {
-    street: 'San Ramón N° 2055',
+    street: 'Francisco Bilbao 1202',
     city: 'Villarrica',
     region: 'Región de La Araucanía',
     country: 'Chile',
@@ -138,7 +138,7 @@ export const PROGRAMS: readonly Program[] = [
 
 /** Reseña institucional breve. */
 export const HISTORY =
-  'El Centro General de Padres y Apoderados del Liceo Alexander Graham Bell obtuvo su personalidad jurídica el 31 de mayo de 2016, quedando inscrito con el N° 242029 y la naturaleza de organización funcional. Desde entonces representa a las familias del establecimiento ante la dirección, administra los recursos que ellas aportan y rinde cuenta de su uso a la comunidad escolar del sector San Ramón, en Villarrica.';
+  'El Centro General de Padres y Apoderados del Liceo Alexander Graham Bell obtuvo su personalidad jurídica el 31 de mayo de 2016, quedando inscrito con el N° 242029 y la naturaleza de organización funcional. Desde entonces representa a las familias del establecimiento ante la dirección, administra los recursos que ellas aportan y rinde cuenta de su uso a la comunidad escolar del establecimiento, en Villarrica.';
 
 export interface BoardMember {
   /** Cargo que ocupa según la última directiva electa. */

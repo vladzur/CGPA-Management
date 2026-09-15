@@ -69,7 +69,7 @@ describe('About', () => {
     expect(text).toContain('31-05-2016');
     expect(text).toContain(ORGANIZATION.legalPersonality.registry);
     expect(text).toContain(ORGANIZATION.legalPersonality.status);
-    expect(text).toContain('San Ramón N° 2055');
+    expect(text).toContain('Francisco Bilbao 1202');
   });
 
   it('should render the role and the name of every board member', () => {

@@ -47,7 +47,7 @@ describe('PublicLayout', () => {
   it('should render the physical address of the organization', () => {
     const text = mountLayout().text();
 
-    expect(text).toContain('San Ramón N° 2055');
+    expect(text).toContain('Francisco Bilbao 1202');
     expect(text).toContain('Villarrica');
   });
 

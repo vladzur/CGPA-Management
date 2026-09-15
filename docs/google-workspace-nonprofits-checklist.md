@@ -19,7 +19,7 @@ Estos son los datos que Google contrasta contra el registro de la organización 
 | Fecha de concesión | 31-05-2016 | `/nosotros`, footer |
 | Estado | Vigente | `/`, `/nosotros`, footer |
 | Registro | Registro de Personas Jurídicas sin Fines de Lucro | `/nosotros` |
-| Domicilio | San Ramón N° 2055, Villarrica, Región de La Araucanía | `/`, `/nosotros`, `/contacto`, footer, datos estructurados |
+| Domicilio | Francisco Bilbao 1202, Villarrica, Región de La Araucanía | `/`, `/nosotros`, `/contacto`, footer, datos estructurados |
 | Última elección de directiva | 29-04-2026 (período de 3 años) | `/nosotros#directiva` |
 | Integrantes de la directiva | 10 cargos con nombre y cargo | `/nosotros#directiva` |
 
@@ -72,7 +72,7 @@ Ley 19.628).
 | Requisito | Dónde se satisface |
 |---|---|
 | ID de organización sin fines de lucro | N° de Personalidad Jurídica **242029**, publicado en `/nosotros` (ficha legal), `/contacto`, footer global y datos estructurados. |
-| Dirección física | San Ramón N° 2055, Villarrica, Región de La Araucanía. Publicada en `/nosotros`, `/contacto`, footer global y datos estructurados `PostalAddress`. |
+| Dirección física | Francisco Bilbao 1202, Villarrica, Región de La Araucanía. Publicada en `/nosotros`, `/contacto`, footer global y datos estructurados `PostalAddress`. |
 | Declaración de misión | `/` y `/nosotros` publican la misión, la visión y los objetivos permanentes. |
 | Descripción de programas y servicios | `/nosotros` describe las 3 líneas de trabajo (infraestructura y equipamiento; material educativo y actividades; administración transparente de los recursos), y `/proyectos` publica los proyectos financiados con su ejecución presupuestaria. |
 | Noticias y avisos institucionales | `/comunicados` publica los comunicados oficiales de la directiva. |
@@ -86,7 +86,7 @@ Ley 19.628).
 # 1. El HTML servido contiene la identidad legal sin ejecutar JavaScript
 curl -s https://cgpagrahambell.cl | grep -i "personalidad jurídica"
 curl -s https://cgpagrahambell.cl/nosotros | grep -i "242029"
-curl -s https://cgpagrahambell.cl/contacto | grep -i "San Ramón"
+curl -s https://cgpagrahambell.cl/contacto | grep -i "Francisco Bilbao"
 
 # 2. Archivos de rastreo
 curl -s https://cgpagrahambell.cl/robots.txt

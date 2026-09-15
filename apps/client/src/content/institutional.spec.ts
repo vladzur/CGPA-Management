@@ -38,7 +38,7 @@ describe('institutional content', () => {
   it('should declare a complete physical address', () => {
     const { address } = ORGANIZATION;
 
-    expect(address.street).toMatch(/San Ramón/);
+    expect(address.street).toMatch(/Francisco Bilbao/);
     expect(address.city).toBe('Villarrica');
     expect(address.region).toMatch(/Araucanía/);
     expect(address.countryCode).toBe('CL');
@@ -59,7 +59,7 @@ describe('institutional content', () => {
   it('should format the address as a single readable line', () => {
     const formatted = formatAddress();
 
-    expect(formatted).toContain('San Ramón N° 2055');
+    expect(formatted).toContain('Francisco Bilbao 1202');
     expect(formatted).toContain('Villarrica');
     expect(formatted).toContain('Chile');
   });

@@ -47,7 +47,7 @@ describe('Contact', () => {
   it('should render the registered address of the organization', () => {
     const text = mount(Contact).text();
 
-    expect(text).toContain('San Ramón N° 2055');
+    expect(text).toContain('Francisco Bilbao 1202');
     expect(text).toContain('Villarrica');
   });
 

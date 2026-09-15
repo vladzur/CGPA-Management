@@ -114,7 +114,7 @@ describe('Home', () => {
     const wrapper = mount(Home);
     await flushPromises();
 
-    expect(wrapper.text()).toContain('San Ramón N° 2055');
+    expect(wrapper.text()).toContain('Francisco Bilbao 1202');
   });
 
   it('should render every declared program', async () => {
