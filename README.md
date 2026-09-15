@@ -32,6 +32,63 @@ El objetivo de este proyecto es permitir a la directiva del CGPA gestionar y pub
 
 ---
 
+## 🌐 Sitio institucional (Google Workspace for Nonprofits)
+
+El cliente dejó de ser solo el tablero de transparencia: ahora es el **sitio web institucional
+oficial** del Centro General de Padres y Apoderados del Liceo Alexander Graham Bell, publicado en
+`https://cgpagrahambell.cl`.
+
+### Rutas públicas
+
+| Ruta | Contenido |
+|---|---|
+| `/` | Portada institucional: nombre legal, personalidad jurídica, misión, programas, resumen de rendición de cuentas y últimos comunicados. |
+| `/nosotros` | Misión, visión, objetivos, programas, historia, ficha legal y directiva vigente (`#directiva`). |
+| `/proyectos` | Proyectos financiados con su ejecución presupuestaria. |
+| `/transparencia` | Saldo del fondo general y detalle de movimientos con respaldo e integridad verificable. |
+| `/comunicados` | Comunicados oficiales de la directiva. |
+| `/contacto` | Datos de la organización y formulario que persiste el mensaje en la bandeja de la directiva. |
+
+Las rutas internas (`/login`, `/registro-interno-agb`, `/validar/:uuid`, `/admin/**`) quedan fuera
+del catálogo público y no se indexan.
+
+### Origen del contenido
+
+El texto legal, la misión y la directiva viven en `apps/client/src/content/institutional.ts` y se
+editan por Pull Request. Las noticias y avisos se gestionan desde el panel de administración
+(colección `comunicados`).
+
+La lista canónica de páginas públicas está en `apps/client/src/content/public-routes.ts` y alimenta
+el menú de navegación, los metadatos, el prerender y el `sitemap.xml`.
+
+### Prerender estático
+
+`pnpm --filter @cgpa/client build` ejecuta, después de `vite build`,
+`apps/client/scripts/prerender.mjs`, que renderiza cada ruta pública en Chrome headless y escribe
+`dist/<ruta>.html` junto con un `sitemap.xml` actualizado. Con `cleanUrls` habilitado en
+`firebase.json`, `/nosotros` se sirve desde `nosotros.html`. Esto garantiza que el contenido
+institucional esté presente en el HTML sin depender de JavaScript.
+
+| Variable | Uso |
+|---|---|
+| `CHROME_PATH` | Ruta al binario de Chrome cuando no se detecta automáticamente. |
+| `PRERENDER_STRICT=1` | Hace fallar el build si no hay Chrome disponible. |
+| `PRERENDER_SETTLE_MS` | Espera adicional antes de capturar el HTML (por defecto 400 ms). |
+| `PRERENDER_DATA_TIMEOUT_MS` | Espera máxima a que se resuelvan los bloques con datos dinámicos, para no grabar un indicador de carga en el HTML estático (por defecto 8000 ms). |
+
+Los runners `ubuntu-latest` de GitHub Actions ya incluyen Chrome. Si el script no encuentra un
+navegador, omite el prerender con una advertencia y el build continúa (salvo `PRERENDER_STRICT=1`).
+
+El script guarda en `dist/.prerender-shell.html` una copia normalizada de la plantilla generada por
+Vite, que reutiliza mientras no se vuelva a compilar. Eso lo hace determinista: ejecutarlo dos veces
+seguidas produce exactamente los mismos archivos. `vite build` vacía el directorio, así que la
+plantilla siempre se regenera tras cada compilación. Firebase Hosting no publica ese archivo porque
+las reglas de `firebase.json` ignoran los nombres que empiezan por punto.
+
+> Checklist de cumplimiento para la postulación: [google-workspace-nonprofits-checklist.md](docs/google-workspace-nonprofits-checklist.md)
+
+---
+
 ## 🛠️ Puesta en Marcha (Desde Cero)
 
 Sigue estos pasos para configurar el proyecto en un entorno local o de desarrollo.
@@ -127,6 +184,8 @@ El backend (`apps/api`) cuenta con una suite de tests completa ejecutada con **J
 - **`proyectos.e2e-spec.ts`** — CRUD completo de proyectos con validación de presupuesto.
 - **`transactions.e2e-spec.ts`** — Creación, listado y filtrado de transacciones financieras.
 - **`usuarios.e2e-spec.ts`** — Registro, aprobación y gestión de roles de usuarios.
+- **`comunicados.e2e-spec.ts`** — Endpoint público, autenticación y CRUD de comunicados.
+- **`mensajes.e2e-spec.ts`** — Formulario público de contacto, validación, filtro anti-spam y control de acceso por rol de la bandeja de la directiva.
 - **`app.e2e-spec.ts`** — Salud del servidor (`/health`).
 
 ### Ejecutar los tests localmente
@@ -142,6 +201,20 @@ pnpm --filter @cgpa/api test:e2e
 
 # Tests en modo watch (desarrollo)
 pnpm --filter @cgpa/api test:watch
+```
+
+### Tests del cliente
+
+El cliente (`apps/client`) usa **Vitest** con `happy-dom` y cubre el contenido institucional, los
+utilidades de formato y de formulario, los metadatos por ruta, el layout público, las vistas
+públicas y la estructura del router.
+
+```bash
+# Tests del cliente
+pnpm --filter @cgpa/client test
+
+# Modo watch
+pnpm --filter @cgpa/client test:watch
 ```
 
 > Los umbrales de cobertura están configurados en el campo `"jest"` del `apps/api/package.json`. Si no se alcanzan, el comando retorna código de salida ≠ 0 y bloquea el pipeline de CI.

@@ -9,12 +9,17 @@ export default defineConfig({
     vue(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg'],
+      includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'logo-cgpa.png'],
       manifest: {
-        name: 'CGPA AGB Transparencia',
-        short_name: 'CGPA AGB',
-        description: 'Plataforma de Transparencia Financiera del CGPA Liceo AGB',
-        theme_color: '#ffffff',
+        name: 'CGPA Graham Bell',
+        short_name: 'CGPA GB',
+        description:
+          'Sitio oficial del Centro General de Padres y Apoderados Liceo Alexander Graham Bell',
+        lang: 'es',
+        start_url: '/',
+        scope: '/',
+        display: 'standalone',
+        theme_color: '#0D47A1',
         background_color: '#ffffff',
         icons: [
           {
@@ -26,6 +31,12 @@ export default defineConfig({
             src: 'pwa-512x512.png',
             sizes: '512x512',
             type: 'image/png'
+          },
+          {
+            src: 'pwa-maskable-512x512.png',
+            sizes: '512x512',
+            type: 'image/png',
+            purpose: 'maskable'
           }
         ]
       }
