@@ -146,6 +146,21 @@ function buildSitemap() {
   ].join('\n');
 }
 
+/**
+ * Omite el prerender sin bloquear el despliegue.
+ * Solo se considera un error fatal cuando `PRERENDER_STRICT=1`, porque el sitio
+ * sigue siendo funcional sin HTML estático: Firebase Hosting sirve la SPA igual.
+ */
+async function abortPrerender(message) {
+  if (process.env.PRERENDER_STRICT === '1') {
+    console.error(message);
+    process.exit(1);
+  }
+
+  console.warn(`${message} Se publica la SPA sin HTML estático.`);
+  await writeFile(path.join(distDir, 'sitemap.xml'), buildSitemap(), 'utf8');
+}
+
 async function main() {
   if (!existsSync(path.join(distDir, 'index.html'))) {
     console.error(
@@ -157,64 +172,78 @@ async function main() {
   const chromePath = findChrome();
 
   if (!chromePath) {
-    const message =
-      '[prerender] No se encontró Chrome. Se omite el prerender y se publica la SPA sin HTML estático. ' +
-      'Define CHROME_PATH para habilitarlo.';
-
-    if (process.env.PRERENDER_STRICT === '1') {
-      console.error(message);
-      process.exit(1);
-    }
-
-    console.warn(message);
-    await writeFile(path.join(distDir, 'sitemap.xml'), buildSitemap(), 'utf8');
+    await abortPrerender(
+      '[prerender] No se encontró Chrome. Define CHROME_PATH para habilitarlo.',
+    );
     return;
   }
 
-  const { default: puppeteer } = await import('puppeteer-core');
-  const { server, port } = await startStaticServer();
+  let browser;
+  let server;
+  let port;
 
-  const browser = await puppeteer.launch({
-    executablePath: chromePath,
-    headless: true,
-    args: ['--no-sandbox', '--disable-dev-shm-usage', '--disable-gpu'],
-  });
+  try {
+    ({ server, port } = await startStaticServer());
+    const { default: puppeteer } = await import('puppeteer-core');
+
+    browser = await puppeteer.launch({
+      executablePath: chromePath,
+      headless: true,
+      args: ['--no-sandbox', '--disable-dev-shm-usage', '--disable-gpu'],
+    });
+  } catch (error) {
+    server?.close();
+    await abortPrerender(
+      `[prerender] No se pudo iniciar el prerender (${error.message}).`,
+    );
+    return;
+  }
 
   const rendered = new Map();
 
   try {
     for (const route of PUBLIC_ROUTES) {
-      const page = await browser.newPage();
-      const url = `http://127.0.0.1:${port}${route.path === '/' ? '/' : route.path}`;
+      let page;
 
-      await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
+      try {
+        page = await browser.newPage();
+        const url = `http://127.0.0.1:${port}${route.path === '/' ? '/' : route.path}`;
 
-      await page
-        .waitForFunction('window.__PRERENDER_READY__ === true', {
-          timeout: 15000,
-        })
-        .catch(() => {
-          console.warn(
-            `[prerender] ${route.path}: la aplicación no emitió la señal de listo; se captura el estado actual.`,
-          );
-        });
+        await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
 
-      // Espera best-effort a que terminen las peticiones de datos (Firestore/API).
-      await page
-        .waitForNetworkIdle({ idleTime: 500, timeout: 5000 })
-        .catch(() => undefined);
+        await page
+          .waitForFunction('window.__PRERENDER_READY__ === true', {
+            timeout: 15000,
+          })
+          .catch(() => {
+            console.warn(
+              `[prerender] ${route.path}: la aplicación no emitió la señal de listo; se captura el estado actual.`,
+            );
+          });
 
-      await new Promise((resolve) => setTimeout(resolve, SETTLE_MS));
+        // Espera best-effort a que terminen las peticiones de datos (Firestore/API).
+        await page
+          .waitForNetworkIdle({ idleTime: 500, timeout: 5000 })
+          .catch(() => undefined);
 
-      rendered.set(
-        publicRouteOutputFile(route.path),
-        await page.content(),
-      );
-      await page.close();
+        await new Promise((resolve) => setTimeout(resolve, SETTLE_MS));
 
-      console.log(
-        `[prerender] ${route.path} → ${publicRouteOutputFile(route.path)}`,
-      );
+        rendered.set(
+          publicRouteOutputFile(route.path),
+          await page.content(),
+        );
+
+        console.log(
+          `[prerender] ${route.path} → ${publicRouteOutputFile(route.path)}`,
+        );
+      } catch (error) {
+        // Una ruta que falla no debe impedir que se publiquen las demás.
+        console.warn(
+          `[prerender] ${route.path}: no se pudo capturar el HTML (${error.message}).`,
+        );
+      } finally {
+        await page?.close().catch(() => undefined);
+      }
     }
   } finally {
     await browser.close();
