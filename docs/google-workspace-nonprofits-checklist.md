@@ -76,7 +76,7 @@ Ley 19.628).
 | Declaración de misión | `/` y `/nosotros` publican la misión, la visión y los objetivos permanentes. |
 | Descripción de programas y servicios | `/nosotros` describe las 3 líneas de trabajo (infraestructura y equipamiento; material educativo y actividades; administración transparente de los recursos), y `/proyectos` publica los proyectos financiados con su ejecución presupuestaria. |
 | Noticias y avisos institucionales | `/comunicados` publica los comunicados oficiales de la directiva. |
-| Canal de contacto | `/contacto` con domicilio, horario de atención y formulario funcional. |
+| Canal de contacto | `/contacto` con domicilio, correo institucional, horario de atención y formulario funcional. |
 
 ---
 
@@ -112,8 +112,8 @@ Comprobaciones adicionales:
 
 | Pendiente | Detalle | Dónde se cambia |
 |---|---|---|
-| Correo institucional | La directiva aún no define el correo público. Mientras tanto el sitio muestra "Pendiente de definir" y el formulario funciona como canal principal. | `ORGANIZATION.contact.email` en `apps/client/src/content/institutional.ts` |
-| Teléfono institucional | Mismo caso que el correo. | `ORGANIZATION.contact.phone` en `apps/client/src/content/institutional.ts` |
+| Correo institucional | Definido por la directiva: `contacto@cgpagrahambell.cl`. Se publica en `/contacto`, el footer global y los datos estructurados. | `ORGANIZATION.contact.email` en `apps/client/src/content/institutional.ts` |
+| Teléfono institucional | **No se publica** por decisión de la directiva: las consultas se canalizan por correo y por el formulario del sitio. El campo se mantiene en `null`. | `ORGANIZATION.contact.phone` en `apps/client/src/content/institutional.ts` |
 | Revisión del texto institucional | La misión, la visión, los objetivos, los programas y la historia fueron redactados a partir de la descripción de la directiva y deben ser aprobados por ella antes de publicarse. | `apps/client/src/content/institutional.ts` |
 | Dominio autorizado en Firebase Auth | Agregar `cgpagrahambell.cl` a Authentication → Settings → Dominios autorizados, para que el acceso de la directiva funcione desde el dominio nuevo. | Consola de Firebase |
 | URL base de verificación | Actualizar el secreto `VERIFICATION_BASE_URL` a `https://cgpagrahambell.cl` para que los códigos QR de documentos apunten al dominio oficial. | GitHub Secrets + Cloud Run |

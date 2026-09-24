@@ -58,11 +58,13 @@ describe('Contact', () => {
     expect(text).toContain(ORGANIZATION.legalName);
   });
 
-  it('should mark the contact channels as pending while undefined', () => {
+  it('should render the institutional email as the only direct contact channel', () => {
     const text = mount(Contact).text();
 
-    expect(ORGANIZATION.contact.email).toBeNull();
-    expect(text).toContain(PENDING_LABEL);
+    // El correo es el único canal directo publicado: el teléfono no se publica.
+    expect(ORGANIZATION.contact.phone).toBeNull();
+    expect(text).toContain('contacto@cgpagrahambell.cl');
+    expect(text).not.toContain(PENDING_LABEL);
   });
 
   it('should offer every enquiry reason declared in the shared model', () => {

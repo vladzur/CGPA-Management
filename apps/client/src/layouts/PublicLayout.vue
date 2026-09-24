@@ -21,7 +21,6 @@ const currentYear = new Date().getFullYear();
 const legalIdentity = buildLegalIdentityStatement();
 const address = formatAddress();
 const contactEmail = ORGANIZATION.contact.email ?? PENDING_LABEL;
-const contactPhone = ORGANIZATION.contact.phone ?? PENDING_LABEL;
 
 const isActive = (path: string): boolean =>
   path === '/' ? route.path === '/' : route.path.startsWith(path);
@@ -144,7 +143,6 @@ const isActive = (path: string): boolean =>
                 </a>
                 <span v-else>{{ contactEmail }}</span>
               </li>
-              <li>Teléfono: {{ contactPhone }}</li>
             </ul>
           </div>
 
