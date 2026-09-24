@@ -39,9 +39,12 @@ export interface PostalAddress {
 }
 
 export interface PublicContact {
-  /** Correo institucional. `null` mientras la directiva no lo defina. */
+  /** Correo institucional publicado en el sitio. `null` mientras la directiva no lo defina. */
   email: string | null;
-  /** Teléfono institucional. `null` mientras la directiva no lo defina. */
+  /**
+   * Teléfono institucional. Se mantiene en `null` porque la directiva decidió no
+   * publicar un número y canalizar las consultas por correo o por el formulario del sitio.
+   */
   phone: string | null;
   /** Horario o modalidad de atención presencial. */
   officeHours: string;
@@ -80,7 +83,8 @@ export const ORGANIZATION: Organization = {
     countryCode: 'CL',
   },
   contact: {
-    email: null,
+    email: 'contacto@cgpagrahambell.cl',
+    // El teléfono no se publica por decisión de la directiva.
     phone: null,
     officeHours:
       'Atención de la directiva en dependencias del establecimiento, previa coordinación con la secretaría.',
@@ -189,7 +193,7 @@ export function buildLegalIdentityStatement(): string {
   return `${nature} — Personalidad Jurídica N° ${number} (${grantDate}) · Estado: ${status}`;
 }
 
-/** Indica si la directiva ya definió canales de contacto públicos. */
+/** Indica si la directiva ya definió al menos un canal de contacto público. */
 export function hasPublicContact(): boolean {
   return Boolean(ORGANIZATION.contact.email || ORGANIZATION.contact.phone);
 }

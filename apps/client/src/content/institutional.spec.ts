@@ -122,12 +122,12 @@ describe('institutional content', () => {
     expect(BOARD_METADATA.term).toBe('3 años');
   });
 
-  it('should report missing public contact channels while they are undefined', () => {
-    // La directiva aún no define correo ni teléfono institucional: el sitio debe
-    // reflejar ese estado en lugar de mostrar datos inventados.
-    expect(ORGANIZATION.contact.email).toBeNull();
+  it('should declare the public email and keep the phone unpublished', () => {
+    // La directiva definió un único canal directo por correo; el teléfono no se
+    // publica para resguardar la privacidad de la directiva.
+    expect(ORGANIZATION.contact.email).toBe('contacto@cgpagrahambell.cl');
     expect(ORGANIZATION.contact.phone).toBeNull();
-    expect(hasPublicContact()).toBe(false);
+    expect(hasPublicContact()).toBe(true);
   });
 
   it('should declare the official site URL without a trailing slash', () => {

@@ -81,11 +81,12 @@ describe('PublicLayout', () => {
     expect(wrapper.html()).toContain('active');
   });
 
-  it('should mark the public contact channels as pending when undefined', () => {
+  it('should render the institutional email and never a phone number', () => {
     const text = mountLayout().text();
 
-    expect(ORGANIZATION.contact.email).toBeNull();
-    expect(text).toContain(PENDING_LABEL);
+    expect(text).toContain('contacto@cgpagrahambell.cl');
+    expect(text).not.toContain('Teléfono');
+    expect(text).not.toContain(PENDING_LABEL);
   });
 
   it('should render the current year in the footer', () => {

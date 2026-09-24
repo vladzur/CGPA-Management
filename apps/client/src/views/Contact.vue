@@ -38,7 +38,6 @@ const successMessage = ref('');
 const errorMessage = ref('');
 
 const contactEmail = ORGANIZATION.contact.email;
-const contactPhone = ORGANIZATION.contact.phone;
 const address = formatAddress();
 const legalIdentity = buildLegalIdentityStatement();
 
@@ -117,13 +116,6 @@ const handleSubmit = async (): Promise<void> => {
                   >
                     {{ contactEmail }}
                   </a>
-                  <span v-else class="text-base-content/60">{{ PENDING_LABEL }}</span>
-                </dd>
-              </div>
-              <div>
-                <dt class="text-base-content/60">Teléfono</dt>
-                <dd class="font-medium">
-                  <span v-if="contactPhone">{{ contactPhone }}</span>
                   <span v-else class="text-base-content/60">{{ PENDING_LABEL }}</span>
                 </dd>
               </div>
