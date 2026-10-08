@@ -37,7 +37,7 @@ const getProyectoNombre = (id?: string) => {
       <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-liceo-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
       </svg>
-      Últimos Movimientos
+      Historial de Movimientos
     </h2>
 
     <div v-if="store.loading" class="flex justify-center py-10">
@@ -46,7 +46,7 @@ const getProyectoNombre = (id?: string) => {
 
     <div v-else-if="store.transacciones.length === 0" class="alert shadow-md bg-base-100 border-base-200">
       <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="stroke-info shrink-0 w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-      <span>No hay movimientos registrados recientes.</span>
+      <span>No hay movimientos registrados.</span>
     </div>
 
     <div v-else class="overflow-x-auto bg-base-100 rounded-xl shadow-xl border border-base-200">
@@ -92,6 +92,21 @@ const getProyectoNombre = (id?: string) => {
           </tr>
         </tbody>
       </table>
+    </div>
+
+    <!-- Carga bajo demanda del historial completo de movimientos -->
+    <div v-if="store.hasMoreTransactions" class="flex justify-center mt-6">
+      <button
+        class="btn btn-outline btn-primary gap-2"
+        :disabled="store.loadingMoreTransactions"
+        @click="store.loadMoreTransactions()"
+      >
+        <span
+          v-if="store.loadingMoreTransactions"
+          class="loading loading-spinner loading-sm"
+        ></span>
+        {{ store.loadingMoreTransactions ? 'Cargando...' : 'Cargar más movimientos' }}
+      </button>
     </div>
   </div>
 </template>
