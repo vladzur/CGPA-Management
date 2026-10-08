@@ -11,6 +11,9 @@ const finanzasStore = {
   proyectos: [] as unknown[],
   transacciones: [] as unknown[],
   loading: false,
+  hasMoreTransactions: false,
+  loadingMoreTransactions: false,
+  loadMoreTransactions: vi.fn(),
   init: vi.fn(),
   cleanup: vi.fn(),
 };
@@ -71,6 +74,8 @@ describe('Transparency', () => {
     vi.clearAllMocks();
     finanzasStore.loading = false;
     finanzasStore.transacciones = TRANSACTIONS;
+    finanzasStore.hasMoreTransactions = false;
+    finanzasStore.loadingMoreTransactions = false;
   });
 
   it('should render the available balance of the general fund', () => {
@@ -172,5 +177,41 @@ describe('Transparency', () => {
     expect(links).toEqual(
       expect.arrayContaining(['/proyectos', '/comunicados', '/nosotros']),
     );
+  });
+
+  it('should offer to load older movements when the store reports pending transactions', () => {
+    finanzasStore.hasMoreTransactions = true;
+
+    expect(mount(Transparency).text()).toContain('Cargar más movimientos');
+  });
+
+  it('should not offer to load older movements when the store has no pending transactions', () => {
+    expect(mount(Transparency).text()).not.toContain('Cargar más movimientos');
+  });
+
+  it('should request the next page when the load more button is clicked', async () => {
+    finanzasStore.hasMoreTransactions = true;
+
+    const wrapper = mount(Transparency);
+    const button = wrapper
+      .findAll('button')
+      .find((candidate) => candidate.text().includes('Cargar más movimientos'));
+    await button!.trigger('click');
+
+    expect(finanzasStore.loadMoreTransactions).toHaveBeenCalledTimes(1);
+  });
+
+  it('should disable the button and show a spinner while loading more', () => {
+    finanzasStore.hasMoreTransactions = true;
+    finanzasStore.loadingMoreTransactions = true;
+
+    const wrapper = mount(Transparency);
+    const button = wrapper
+      .findAll('button')
+      .find((candidate) => candidate.text().includes('Cargando...'));
+
+    expect(button).toBeDefined();
+    expect(button!.attributes('disabled')).toBeDefined();
+    expect(wrapper.find('.loading-spinner').exists()).toBe(true);
   });
 });

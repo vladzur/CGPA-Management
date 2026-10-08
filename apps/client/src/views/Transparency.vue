@@ -268,6 +268,29 @@ onUnmounted(() => {
               </tbody>
             </table>
           </div>
+
+          <!-- Carga bajo demanda del historial completo -->
+          <div
+            v-if="!store.loading && store.hasMoreTransactions"
+            class="flex flex-col items-center gap-3 border-t border-base-200 px-4 py-6"
+          >
+            <p class="text-xs text-base-content/50 text-center">
+              Se muestran los movimientos más recientes. Los anteriores se cargan de
+              forma voluntaria.
+            </p>
+            <button
+              type="button"
+              class="btn btn-outline btn-primary gap-2"
+              :disabled="store.loadingMoreTransactions"
+              @click="store.loadMoreTransactions()"
+            >
+              <span
+                v-if="store.loadingMoreTransactions"
+                class="loading loading-spinner loading-sm"
+              ></span>
+              {{ store.loadingMoreTransactions ? 'Cargando...' : 'Cargar más movimientos' }}
+            </button>
+          </div>
         </div>
       </section>
 

@@ -24,7 +24,9 @@ vi.mock('firebase/firestore', () => ({
   }),
 }));
 
-import { useFinanzasStore } from './finanzas';
+import { limit, onSnapshot } from 'firebase/firestore';
+
+import { TRANSACTIONS_PAGE_SIZE, useFinanzasStore } from './finanzas';
 
 const INSTITUTION_DATA = {
   nombre: 'Centro General de Padres AGB',
@@ -246,6 +248,101 @@ describe('finanzas store', () => {
 
       expect(restored.institucion.saldo_total).toBe(1250000);
       expect(restored.transacciones[0].fecha).toBe('2026-08-01T10:00:00.000Z');
+    });
+  });
+
+  describe('transaction pagination', () => {
+    /** Construye un snapshot de colección con `count` transacciones ficticias. */
+    function transactionsPage(count: number) {
+      return collectionSnapshot(
+        Array.from({ length: count }, (_, index) => ({
+          id: `t${index + 1}`,
+          data: { tipo: 'INGRESO', monto: 1000 },
+        })),
+      );
+    }
+
+    it('should request only the first page of transactions on init', () => {
+      const store = useFinanzasStore();
+      store.init();
+
+      expect(limit).toHaveBeenCalledWith(TRANSACTIONS_PAGE_SIZE);
+      expect(onSnapshot).toHaveBeenCalledTimes(3);
+      expect(store.hasMoreTransactions).toBe(false);
+    });
+
+    it('should flag pending transactions when the first page comes back full', () => {
+      const store = useFinanzasStore();
+      store.init();
+
+      snapshotCallbacks[2](transactionsPage(TRANSACTIONS_PAGE_SIZE));
+
+      expect(store.transacciones).toHaveLength(TRANSACTIONS_PAGE_SIZE);
+      expect(store.hasMoreTransactions).toBe(true);
+    });
+
+    it('should not flag pending transactions when the first page is also the last one', () => {
+      const store = useFinanzasStore();
+      store.init();
+
+      snapshotCallbacks[2](transactionsPage(4));
+
+      expect(store.hasMoreTransactions).toBe(false);
+    });
+
+    it('should expand the window and refresh the list when more transactions are requested', () => {
+      const store = useFinanzasStore();
+      store.init();
+      snapshotCallbacks[2](transactionsPage(TRANSACTIONS_PAGE_SIZE));
+
+      store.loadMoreTransactions();
+
+      expect(store.loadingMoreTransactions).toBe(true);
+      expect(limit).toHaveBeenCalledWith(TRANSACTIONS_PAGE_SIZE * 2);
+      // Debe liberar el listener anterior y abrir uno nuevo con la ventana ampliada.
+      expect(unsubscribe).toHaveBeenCalledTimes(1);
+      expect(onSnapshot).toHaveBeenCalledTimes(4);
+
+      // El listener de transacciones reenganchado queda al final de los callbacks.
+      snapshotCallbacks[3](transactionsPage(TRANSACTIONS_PAGE_SIZE * 2));
+
+      expect(store.transacciones).toHaveLength(TRANSACTIONS_PAGE_SIZE * 2);
+      expect(store.loadingMoreTransactions).toBe(false);
+      expect(store.hasMoreTransactions).toBe(true);
+    });
+
+    it('should stop offering more transactions when a page comes back incomplete', () => {
+      const store = useFinanzasStore();
+      store.init();
+      snapshotCallbacks[2](transactionsPage(TRANSACTIONS_PAGE_SIZE));
+
+      store.loadMoreTransactions();
+      snapshotCallbacks[3](transactionsPage(TRANSACTIONS_PAGE_SIZE + 3));
+
+      expect(store.hasMoreTransactions).toBe(false);
+      expect(store.loadingMoreTransactions).toBe(false);
+    });
+
+    it('should ignore load more requests while a page is already loading', () => {
+      const store = useFinanzasStore();
+      store.init();
+      snapshotCallbacks[2](transactionsPage(TRANSACTIONS_PAGE_SIZE));
+
+      store.loadMoreTransactions();
+      store.loadMoreTransactions();
+
+      expect(onSnapshot).toHaveBeenCalledTimes(4);
+    });
+
+    it('should ignore load more requests when there are no more transactions', () => {
+      const store = useFinanzasStore();
+      store.init();
+      snapshotCallbacks[2](transactionsPage(3));
+
+      store.loadMoreTransactions();
+
+      expect(onSnapshot).toHaveBeenCalledTimes(3);
+      expect(store.loadingMoreTransactions).toBe(false);
     });
   });
 });
