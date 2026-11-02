@@ -99,6 +99,7 @@ describe('PagosService', () => {
     delete process.env.PUBLIC_API_URL;
     delete process.env.VERIFICATION_BASE_URL;
     delete process.env.PAGO_TTL_DIAS;
+    delete process.env.PAGOS_COLECCION;
   });
 
   function setupDocRef(id = TRANSACTION_ID) {
@@ -116,6 +117,59 @@ describe('PagosService', () => {
     );
     return transaction;
   }
+
+  // ─── Colección configurable ────────────────────────────────────────────────
+
+  describe('collection configuration', () => {
+    function setupCrearPago() {
+      setupDocRef().docRef.set.mockResolvedValue(undefined as any);
+      pasarela.crearCobro.mockResolvedValue({
+        referenciaExterna: 'p1',
+        urlPago: 'https://khipu.test/pay/p1',
+      });
+    }
+
+    it('should use the default collection when PAGOS_COLECCION is not set', async () => {
+      setupCrearPago();
+
+      await service.crearPago('khipu', DTO);
+
+      expect(mockFirestore.collection).toHaveBeenCalledWith('pagos');
+    });
+
+    it('should honour a sandbox collection configured through the environment', async () => {
+      process.env.PAGOS_COLECCION = 'pagos_sandbox';
+      setupCrearPago();
+
+      await service.crearPago('khipu', DTO);
+
+      expect(mockFirestore.collection).toHaveBeenCalledWith('pagos_sandbox');
+    });
+
+    it('should fall back to the default collection when the name is invalid', async () => {
+      process.env.PAGOS_COLECCION = 'pagos/subcoleccion';
+      setupCrearPago();
+
+      await service.crearPago('khipu', DTO);
+
+      expect(mockFirestore.collection).toHaveBeenCalledWith('pagos');
+    });
+
+    it('should use the configured collection when listing payments', async () => {
+      process.env.PAGOS_COLECCION = 'pagos_sandbox';
+      mockFirestore.collection.mockReturnValue({
+        orderBy: jest.fn().mockReturnValue({
+          limit: jest.fn().mockReturnValue({
+            get: jest.fn().mockResolvedValue(createQuerySnapshot([])),
+          }),
+        }),
+      } as any);
+
+      await service.listarPagos();
+
+      expect(mockFirestore.collection).toHaveBeenCalledWith('pagos_sandbox');
+    });
+  });
 
   // ─── crearPago ─────────────────────────────────────────────────────────────
 

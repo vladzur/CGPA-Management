@@ -10,8 +10,14 @@ import { firestoreNow } from '../common/firestore-utils';
 /** Días de vigencia de un cobro, configurables por entorno. */
 const PAGO_TTL_DIAS_DEFAULT = 7;
 
-/** Colección de Firestore donde se persisten los cobros. */
-const COLECCION_PAGOS = 'pagos';
+/** Colección por defecto donde se persisten los cobros. */
+const COLECCION_PAGOS_DEFAULT = 'pagos';
+
+/**
+ * Nombres válidos de colección. Evita configurar rutas con `/`, que Firestore
+ * interpretaría como subcolecciones.
+ */
+const PATRON_COLECCION = /^[A-Za-z0-9_-]{1,100}$/;
 
 /** Resultado de procesar una notificación, útil para tests y logs. */
 export interface ResultadoNotificacion {
@@ -66,6 +72,27 @@ export class PagosService {
   }
 
   /**
+   * Colección efectiva de cobros.
+   *
+   * `PAGOS_COLECCION` permite apuntar una prueba funcional a una colección
+   * aparte (por ejemplo `pagos_sandbox`) sin contaminar el historial real.
+   */
+  private get coleccionPagos(): string {
+    const configurada = process.env.PAGOS_COLECCION?.trim();
+
+    if (!configurada) return COLECCION_PAGOS_DEFAULT;
+
+    if (!PATRON_COLECCION.test(configurada)) {
+      this.logger.warn(
+        `PAGOS_COLECCION inválida (${configurada}); se usa ${COLECCION_PAGOS_DEFAULT}`,
+      );
+      return COLECCION_PAGOS_DEFAULT;
+    }
+
+    return configurada;
+  }
+
+  /**
    * Crea un cobro en la pasarela indicada y persiste el registro local en
    * estado `PENDIENTE`.
    *
@@ -115,7 +142,7 @@ export class PagosService {
       actualizado_en: ahora,
     };
 
-    await this.db.collection(COLECCION_PAGOS).doc(transactionId).set(pago);
+    await this.db.collection(this.coleccionPagos).doc(transactionId).set(pago);
 
     this.logger.log(
       `Cobro ${pasarela.id} creado transaction_id=${transactionId} referencia=${cobro.referenciaExterna}`,
@@ -163,7 +190,7 @@ export class PagosService {
    * webhook haya llegado antes que el apoderado vuelva al sitio.
    */
   async consultarPago(transactionId: string): Promise<PagoPublico> {
-    const pagoRef = this.db.collection(COLECCION_PAGOS).doc(transactionId);
+    const pagoRef = this.db.collection(this.coleccionPagos).doc(transactionId);
     let snapshot = await pagoRef.get();
 
     if (!snapshot.exists) {
@@ -201,7 +228,7 @@ export class PagosService {
   /** Lista los últimos cobros para la directiva, sin exponer sus tokens. */
   async listarPagos(): Promise<Array<Pago & { id: string }>> {
     const snapshot = await this.db
-      .collection(COLECCION_PAGOS)
+      .collection(this.coleccionPagos)
       .orderBy('creado_en', 'desc')
       .limit(200)
       .get();
@@ -227,7 +254,7 @@ export class PagosService {
     tokenNotificacion?: string,
   ): Promise<ResultadoNotificacion> {
     const pagoRef = this.db
-      .collection(COLECCION_PAGOS)
+      .collection(this.coleccionPagos)
       .doc(verificado.transactionId);
 
     return this.db.runTransaction<ResultadoNotificacion>(async (t) => {
