@@ -289,6 +289,8 @@ git push origin v1.2.3
 | `VERIFICATION_BASE_URL` | Release (Cloud Run env var) |
 | `CGPA_RUT` | Release (Cloud Run env var) |
 
+> `VITE_FIREBASE_MEASUREMENT_ID` (Google Analytics) se define como **Variable de repositorio**, no como secreto: su valor es público y viaja en el bundle del cliente. Si falta, el sitio no registra analítica.
+
 ---
 
 ## 9. Docker — Imagen del Backend

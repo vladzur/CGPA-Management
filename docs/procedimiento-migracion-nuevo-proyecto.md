@@ -165,7 +165,8 @@ const firebaseConfig = {
   projectId: "xxx",               // → VITE_FIREBASE_PROJECT_ID
   storageBucket: "xxx.appspot.com",   // → VITE_FIREBASE_STORAGE_BUCKET (se usa en 2 lugares)
   messagingSenderId: "xxx",       // → VITE_FIREBASE_MESSAGING_SENDER_ID
-  appId: "xxx"                    // → VITE_FIREBASE_APP_ID
+  appId: "xxx",                   // → VITE_FIREBASE_APP_ID
+  measurementId: "G-XXXXXXXXXX"   // → VITE_FIREBASE_MEASUREMENT_ID (opcional, Google Analytics)
 };
 ```
 
@@ -224,6 +225,8 @@ En el repositorio GitHub (Settings > Secrets and variables > Actions), actualiza
 | `DOCUMENT_SALT` | Salt generada en paso 4.2 |
 | `VERIFICATION_BASE_URL` | URL base del frontend en prod |
 | `CGPA_RUT` | RUT del CGPA Liceo AGB |
+
+> `VITE_FIREBASE_MEASUREMENT_ID` (Google Analytics) se agrega como **Variable de repositorio** (Settings > Secrets and variables > Actions > Variables), no como secreto. Si falta, el sitio no registra analítica.
 
 ---
 
@@ -335,6 +338,7 @@ VITE_FIREBASE_PROJECT_ID="cgpa-liceo-agb"
 VITE_FIREBASE_STORAGE_BUCKET="cgpa-liceo-agb.appspot.com"
 VITE_FIREBASE_MESSAGING_SENDER_ID="123456789"
 VITE_FIREBASE_APP_ID="1:123456789:web:abcdef123456"
+VITE_FIREBASE_MEASUREMENT_ID=""
 ```
 
 ### 7.3 Archivo .env del backend para sandbox
