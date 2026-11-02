@@ -309,3 +309,5 @@ docker run -p 8080:8080 -e NODE_ENV=production cgpa-api
 | `VITE_FIREBASE_APP_ID` | PR Preview, CI Merge, Release |
 | `FIREBASE_SERVICE_ACCOUNT_CGPA_LICEO_AGB` | PR Preview, Release (Hosting) |
 | `GCP_CREDENTIALS` | Release (Cloud Run) |
+
+> `VITE_FIREBASE_MEASUREMENT_ID` (Google Analytics) se define como **Variable de repositorio**, no como secreto: su valor es público y viaja en el bundle del cliente. Si falta, el sitio no registra analítica.
