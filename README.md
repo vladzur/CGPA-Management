@@ -47,10 +47,12 @@ oficial** del Centro General de Padres y Apoderados del Liceo Alexander Graham B
 | `/proyectos` | Proyectos financiados con su ejecución presupuestaria. |
 | `/transparencia` | Saldo del fondo general y detalle de movimientos con respaldo e integridad verificable. |
 | `/comunicados` | Comunicados oficiales de la directiva. |
+| `/pagar` | Botón de pago Khipu para que los apoderados paguen la cuota anual u otros aportes mediante transferencia bancaria. |
 | `/contacto` | Datos de la organización y formulario que persiste el mensaje en la bandeja de la directiva. |
 
-Las rutas internas (`/login`, `/registro-interno-agb`, `/validar/:uuid`, `/admin/**`) quedan fuera
-del catálogo público y no se indexan.
+Las rutas internas (`/login`, `/registro-interno-agb`, `/validar/:uuid`, `/admin/**`) y los
+retornos de pago (`/pagar/confirmacion`, `/pagar/cancelado`) quedan fuera del catálogo público y
+no se indexan.
 
 ### Origen del contenido
 
@@ -89,6 +91,82 @@ las reglas de `firebase.json` ignoran los nombres que empiezan por punto.
 
 ---
 
+## 💳 Botón de pago
+
+La página `/pagar` permite a los apoderados pagar la cuota anual u otros aportes mediante
+**transferencia bancaria simplificada**. La implementación actual usa **Khipu (API v3)**.
+
+> **Documentación técnica completa:** [docs/integracion-pasarelas-pago.md](docs/integracion-pasarelas-pago.md)
+> — arquitectura, modelo de datos, contrato `PasarelaPago` y **procedimiento paso a paso para
+> agregar una pasarela nueva** (incluye notas de Webpay Plus).
+> Especificación del proveedor vigente: [boton_de_pago.md](docs/boton_de_pago.md).
+
+### Flujo
+
+1. El apoderado completa nombre, correo, motivo y monto en `/pagar`.
+2. `POST /api/pagos/:proveedor` valida el payload, genera el `transaction_id` interno y crea el
+   cobro en la pasarela. El backend devuelve `payment_url` y el frontend redirige al portal de pago.
+3. El apoderado paga y vuelve a `/pagar/confirmacion?transaction_id=…` o
+   `/pagar/cancelado?transaction_id=…`.
+4. La pasarela notifica a `POST /api/pagos/:proveedor/webhook`.
+5. El backend **nunca confía en el cuerpo de la notificación**: cada pasarela verifica el pago
+   servidor a servidor y solo entonces se actualiza el registro local. El proceso es idempotente y
+   valida que el monto y la moneda coincidan con el cobro original.
+
+### Endpoints
+
+| Método | Ruta | Acceso | Descripción |
+|---|---|---|---|
+| `POST` | `/api/pagos/:proveedor` | Público | Crea el cobro y devuelve `payment_url`. |
+| `POST` | `/api/pagos/:proveedor/webhook` | Público | Recibe la notificación y verifica el pago. |
+| `GET` | `/api/pagos/:transactionId` | Público | Estado del cobro (sin datos personales ni tokens). |
+| `GET` | `/api/pagos` | `ADMIN` activo | Últimos 200 cobros para la directiva. |
+
+Valores de `:proveedor`: `khipu`.
+
+### Arquitectura
+
+El orquestador ([pagos.service.ts](apps/api/src/pagos/pagos.service.ts)) concentra la persistencia,
+la idempotencia y las transiciones de estado; no conoce detalles de ningún proveedor. Cada pasarela
+implementa el contrato [PasarelaPago](apps/api/src/pagos/pasarelas/pasarela-pago.interface.ts)
+(`crearCobro`, `extraerReferenciaNotificacion`, `verificarPago`) y se registra en
+[pagos.module.ts](apps/api/src/pagos/pagos.module.ts).
+
+Agregar un método de pago nuevo no requiere tocar el orquestador, las reglas de Firestore ni las
+páginas de confirmación. El procedimiento completo está en
+[integracion-pasarelas-pago.md § 8](docs/integracion-pasarelas-pago.md#8-procedimiento-agregar-una-nueva-pasarela).
+
+### Persistencia
+
+Los cobros se guardan en la colección `pagos`, usando el `transaction_id` como id del documento y
+con un campo `proveedor` que indica la pasarela. Los estados internos son `PENDIENTE`, `PAGADO`,
+`CANCELADO` y `FALLIDO`; cada pasarela los traduce desde su propio vocabulario (`done`,
+`verifying`, `cancelled`, `failed` en Khipu).
+
+> El pago confirmado **no** crea automáticamente una transacción de ingreso: la directiva decide
+> cuándo conciliarlo en la contabilidad del CGPA con su respaldo correspondiente.
+
+### Variables de entorno (`apps/api`)
+
+| Variable | Obligatoria | Descripción |
+|---|---|---|
+| `KHIPU_API_KEY` | Sí (si Khipu está activo) | Clave del portal de desarrolladores. Sin ella, `/pagos/khipu` responde `503`. |
+| `KHIPU_API_BASE_URL` | No | Base de la API v3 (por defecto `https://khipu.com/api/v3`). |
+| `PUBLIC_API_URL` | No | URL pública de la API; de ella se deriva `<…>/pagos/<proveedor>/webhook`. Si falta, se usa `VERIFICATION_BASE_URL` + `/api`. |
+| `CLIENT_BASE_URL` | No | URL del frontend para `return_url` y `cancel_url`. Si falta, se usa `VERIFICATION_BASE_URL`. |
+| `PAGO_TTL_DIAS` | No | Vigencia de cada cobro en días (por defecto `7`). |
+
+### Seguridad
+
+- Las credenciales y las URLs de retorno se generan solo en el backend; el cliente no puede alterarlas.
+- El webhook solo aporta una referencia; el estado real siempre se obtiene desde la pasarela.
+- Un pago `PAGADO` nunca retrocede por una notificación duplicada o fuera de orden.
+- Una notificación de una pasarela distinta a la del cobro se descarta.
+- Las reglas de Firestore bloquean toda lectura/escritura directa a `pagos`.
+- Los errores de comunicación con la pasarela se registran con `Logger` para facilitar el soporte.
+
+---
+
 ## 🛠️ Puesta en Marcha (Desde Cero)
 
 Sigue estos pasos para configurar el proyecto en un entorno local o de desarrollo.
@@ -108,11 +186,17 @@ pnpm install
 ```
 
 ### 3. Configuración de Variables de Entorno
-Copia el archivo de ejemplo de variables de entorno en el cliente y configúralo con las credenciales de tu proyecto de Firebase:
+Copia los archivos de ejemplo de variables de entorno del cliente y de la API:
 ```bash
 cp apps/client/.env.example apps/client/.env
+cp apps/api/.env.example apps/api/.env
 ```
-Edita `apps/client/.env` y reemplaza los valores por las claves correspondientes de tu proyecto en la Consola de Firebase.
+Edita `apps/client/.env` con las claves correspondientes de tu proyecto en la Consola de Firebase.
+En `apps/api/.env` configura `DOCUMENT_SALT` y, si vas a probar el botón de pago, las variables
+`KHIPU_*` y `PUBLIC_API_URL` descritas en [Botón de pago](#-botón-de-pago).
+
+> El pago con Khipu no funciona en modo offline: su webhook debe ser accesible desde internet. En
+> local, expón la API con un túnel (por ejemplo `ngrok http 3000`) y usa esa URL en `PUBLIC_API_URL`.
 
 ### 4. Iniciar Emuladores de Firebase (Desarrollo Local)
 Para probar todo en local de forma aislada (sin afectar producción), inicia los emuladores:
@@ -186,6 +270,7 @@ El backend (`apps/api`) cuenta con una suite de tests completa ejecutada con **J
 - **`usuarios.e2e-spec.ts`** — Registro, aprobación y gestión de roles de usuarios.
 - **`comunicados.e2e-spec.ts`** — Endpoint público, autenticación y CRUD de comunicados.
 - **`mensajes.e2e-spec.ts`** — Formulario público de contacto, validación, filtro anti-spam y control de acceso por rol de la bandeja de la directiva.
+- **`pagos.e2e-spec.ts`** — Botón de pago Khipu: creación pública, validación, webhook JSON y form-urlencoded, consulta de estado e historial solo para ADMIN.
 - **`app.e2e-spec.ts`** — Salud del servidor (`/health`).
 
 ### Ejecutar los tests localmente
@@ -309,5 +394,6 @@ docker run -p 8080:8080 -e NODE_ENV=production cgpa-api
 | `VITE_FIREBASE_APP_ID` | PR Preview, CI Merge, Release |
 | `FIREBASE_SERVICE_ACCOUNT_CGPA_LICEO_AGB` | PR Preview, Release (Hosting) |
 | `GCP_CREDENTIALS` | Release (Cloud Run) |
+| `KHIPU_API_KEY` | Release (Cloud Run) |
 
 > `VITE_FIREBASE_MEASUREMENT_ID` (Google Analytics) se define como **Variable de repositorio**, no como secreto: su valor es público y viaja en el bundle del cliente. Si falta, el sitio no registra analítica.
