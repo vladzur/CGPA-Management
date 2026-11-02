@@ -201,12 +201,16 @@ Variables de `apps/api` (ver [`.env.example`](../apps/api/.env.example)):
 | `PUBLIC_API_URL` | No | URL pública de la API. De ella se deriva `<…>/pagos/<proveedor>/webhook`. Si falta, se usa `VERIFICATION_BASE_URL` + `/api`. |
 | `CLIENT_BASE_URL` | No | URL del frontend para `return_url` y `cancel_url`. Si falta, se usa `VERIFICATION_BASE_URL`. |
 | `PAGO_TTL_DIAS` | No | Vigencia de cada cobro en días (por defecto `7`). |
+| `PAGOS_COLECCION` | No | Colección de Firestore (por defecto `pagos`). Usa `pagos_sandbox` para pruebas funcionales. |
 | `KHIPU_API_KEY` | Sí, si Khipu está activo | Clave del portal de desarrolladores. |
 | `KHIPU_API_BASE_URL` | No | Base de la API v3. |
 
 Las credenciales de cada proveedor se inyectan en Cloud Run desde GitHub Secrets
 (`.github/workflows/release-deploy.yml`). En desarrollo local, el webhook exige una URL accesible
 desde internet: expón la API con un túnel (`ngrok http 3000`) y usa esa URL en `PUBLIC_API_URL`.
+
+El procedimiento completo para validar la integración con credenciales de sandbox está en
+[prueba-funcional-khipu-sandbox.md](prueba-funcional-khipu-sandbox.md).
 
 ---
 

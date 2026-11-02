@@ -99,6 +99,7 @@ La página `/pagar` permite a los apoderados pagar la cuota anual u otros aporte
 > **Documentación técnica completa:** [docs/integracion-pasarelas-pago.md](docs/integracion-pasarelas-pago.md)
 > — arquitectura, modelo de datos, contrato `PasarelaPago` y **procedimiento paso a paso para
 > agregar una pasarela nueva** (incluye notas de Webpay Plus).
+> Prueba funcional con el sandbox de Khipu: [docs/prueba-funcional-khipu-sandbox.md](docs/prueba-funcional-khipu-sandbox.md).
 > Especificación del proveedor vigente: [boton_de_pago.md](docs/boton_de_pago.md).
 
 ### Flujo
@@ -155,6 +156,7 @@ con un campo `proveedor` que indica la pasarela. Los estados internos son `PENDI
 | `PUBLIC_API_URL` | No | URL pública de la API; de ella se deriva `<…>/pagos/<proveedor>/webhook`. Si falta, se usa `VERIFICATION_BASE_URL` + `/api`. |
 | `CLIENT_BASE_URL` | No | URL del frontend para `return_url` y `cancel_url`. Si falta, se usa `VERIFICATION_BASE_URL`. |
 | `PAGO_TTL_DIAS` | No | Vigencia de cada cobro en días (por defecto `7`). |
+| `PAGOS_COLECCION` | No | Colección de Firestore (por defecto `pagos`). Usa `pagos_sandbox` en pruebas funcionales. |
 
 ### Seguridad
 
