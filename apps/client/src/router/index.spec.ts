@@ -70,6 +70,18 @@ vi.mock('../views/Contact.vue', () => ({
   default: { template: '<div class="contact-view" />' },
 }));
 
+vi.mock('../views/Pagar.vue', () => ({
+  default: { template: '<div class="pagar-view" />' },
+}));
+
+vi.mock('../views/PagoConfirmacion.vue', () => ({
+  default: { template: '<div class="pago-confirmacion-view" />' },
+}));
+
+vi.mock('../views/PagoCancelado.vue', () => ({
+  default: { template: '<div class="pago-cancelado-view" />' },
+}));
+
 vi.mock('../views/admin/AdminMessages.vue', () => ({
   default: { template: '<div class="admin-messages" />' },
 }));
@@ -118,6 +130,17 @@ describe('Router', () => {
 
     it('debe resolver la ruta de contacto', () => {
       expect(router.resolve('/contacto').name).toBe('Contact');
+    });
+
+    it('debe resolver la página del botón de pago Khipu', () => {
+      expect(router.resolve('/pagar').name).toBe('Pagar');
+    });
+
+    it('debe resolver los retornos de Khipu fuera del catálogo indexable', () => {
+      expect(router.resolve('/pagar/confirmacion').name).toBe(
+        'PagoConfirmacion',
+      );
+      expect(router.resolve('/pagar/cancelado').name).toBe('PagoCancelado');
     });
 
     it('debe resolver la ruta de login', () => {

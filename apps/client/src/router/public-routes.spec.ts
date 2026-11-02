@@ -30,6 +30,9 @@ vi.mock('../views/PublicProjects.vue', () => ({ default: { template: '<div />' }
 vi.mock('../views/Transparency.vue', () => ({ default: { template: '<div />' } }));
 vi.mock('../views/ComunicadosPublic.vue', () => ({ default: { template: '<div />' } }));
 vi.mock('../views/Contact.vue', () => ({ default: { template: '<div />' } }));
+vi.mock('../views/Pagar.vue', () => ({ default: { template: '<div />' } }));
+vi.mock('../views/PagoConfirmacion.vue', () => ({ default: { template: '<div />' } }));
+vi.mock('../views/PagoCancelado.vue', () => ({ default: { template: '<div />' } }));
 
 import router from './index';
 
@@ -80,6 +83,8 @@ describe('public route catalogue', () => {
     expect(paths).not.toContain('/login');
     expect(paths).not.toContain('/registro-interno-agb');
     expect(paths.some((path) => path.startsWith('/validar'))).toBe(false);
+    expect(paths).not.toContain('/pagar/confirmacion');
+    expect(paths).not.toContain('/pagar/cancelado');
   });
 
   it('should map the home route to index.html', () => {
@@ -90,6 +95,7 @@ describe('public route catalogue', () => {
     expect(publicRouteOutputFile('/nosotros')).toBe('nosotros.html');
     expect(publicRouteOutputFile('/transparencia')).toBe('transparencia.html');
     expect(publicRouteOutputFile('/contacto/')).toBe('contacto.html');
+    expect(publicRouteOutputFile('/pagar')).toBe('pagar.html');
   });
 
   it('should generate one output file per catalogued route', () => {

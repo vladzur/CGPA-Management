@@ -70,6 +70,16 @@ export const PUBLIC_ROUTES = [
     sitemapChangefreq: 'weekly',
   },
   {
+    path: '/pagar',
+    name: 'Pagar',
+    navLabel: 'Pagar cuota',
+    title: 'Pagar cuota — CGPA Graham Bell',
+    description:
+      'Paga la cuota anual u otros aportes del Centro General de Padres y Apoderados del Liceo Alexander Graham Bell mediante transferencia bancaria simplificada.',
+    sitemapPriority: '0.9',
+    sitemapChangefreq: 'monthly',
+  },
+  {
     path: '/comunicados',
     name: 'PublicAnnouncements',
     navLabel: 'Comunicados',
