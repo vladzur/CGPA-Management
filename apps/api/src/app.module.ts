@@ -13,6 +13,7 @@ import { ComunicadosModule } from './comunicados/comunicados.module';
 import { DocumentosModule } from './documentos/documentos.module';
 import { LibroBalanceModule } from './libro-balance/libro-balance.module';
 import { MensajesModule } from './mensajes/mensajes.module';
+import { PagosModule } from './pagos/pagos.module';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { MensajesModule } from './mensajes/mensajes.module';
     DocumentosModule,
     LibroBalanceModule,
     MensajesModule,
+    PagosModule,
   ],
   controllers: [AppController, TransactionsController],
   providers: [AppService, FinanzasService, StorageService],
