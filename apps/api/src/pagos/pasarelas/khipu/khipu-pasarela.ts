@@ -26,11 +26,12 @@ interface KhipuPaymentCreated {
   ready_for_terminal?: boolean;
 }
 
-/** Respuesta de `GET /payments/{notification_token}` de Khipu v3. */
+/** Respuesta de `GET /payments/{id}` de Khipu v3. */
 interface KhipuPaymentDetail {
   payment_id?: string;
   subject?: string;
-  amount?: number;
+  /** Khipu lo devuelve como cadena con decimales: `"1000.0000"`. */
+  amount?: number | string;
   currency?: string;
   status?: string;
   status_detail?: string;
@@ -39,7 +40,8 @@ interface KhipuPaymentDetail {
   notification_token?: string;
   bank?: string;
   payer_name?: string;
-  transfer_date?: string;
+  /** Fecha de conciliación bancaria (ISO-8601). */
+  conciliation_date?: string;
   receipt_url?: string;
 }
 
@@ -73,7 +75,9 @@ export class KhipuPasarela implements PasarelaPago {
           return_url: solicitud.urlRetorno,
           cancel_url: solicitud.urlCancelacion,
           notify_url: solicitud.urlNotificacion,
-          notify_api_version: '1.3',
+          // Los cobros creados con la API 3.0 solo admiten notificaciones 3.0,
+          // que envían `payment_id` en el cuerpo del webhook.
+          notify_api_version: '3.0',
           expires_date: solicitud.expiraEn,
         }),
       },
@@ -96,11 +100,17 @@ export class KhipuPasarela implements PasarelaPago {
   extraerReferenciaNotificacion(
     payload: Record<string, unknown>,
   ): string | null {
-    const token = payload?.['notification_token'];
+    // La API de notificaciones 3.0 envía `payment_id`; `notification_token`
+    // queda como respaldo para notificaciones 1.3 de cobros antiguos.
+    for (const campo of ['payment_id', 'notification_token']) {
+      const valor = payload?.[campo];
 
-    return typeof token === 'string' && token.trim().length > 0
-      ? token.trim()
-      : null;
+      if (typeof valor === 'string' && valor.trim().length > 0) {
+        return valor.trim();
+      }
+    }
+
+    return null;
   }
 
   async verificarPago(referencia: string): Promise<PagoVerificado | null> {
@@ -129,6 +139,13 @@ export class KhipuPasarela implements PasarelaPago {
     if (detalle.status_detail) verificado.estadoDetalle = detalle.status_detail;
     if (detalle.payment_id) verificado.referenciaExterna = detalle.payment_id;
     if (detalle.bank) verificado.banco = detalle.bank;
+
+    const conciliadoEn = detalle.conciliation_date
+      ? new Date(detalle.conciliation_date)
+      : null;
+    if (conciliadoEn && !Number.isNaN(conciliadoEn.getTime())) {
+      verificado.pagadoEn = conciliadoEn;
+    }
 
     return verificado;
   }
@@ -168,7 +185,7 @@ export class KhipuPasarela implements PasarelaPago {
     apiKey: string,
   ): Promise<T> {
     const baseUrl = (
-      process.env.KHIPU_API_BASE_URL ?? 'https://khipu.com/api/v3'
+      process.env.KHIPU_API_BASE_URL ?? 'https://payment-api.khipu.com/v3'
     ).replace(/\/+$/, '');
 
     try {

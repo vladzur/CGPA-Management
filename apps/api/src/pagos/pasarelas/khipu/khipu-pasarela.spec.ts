@@ -30,6 +30,7 @@ function makeDetalle(overrides: Record<string, any> = {}) {
     status_detail: 'normal',
     transaction_id: SOLICITUD.transactionId,
     notification_token: 'token-seguro',
+    conciliation_date: '2026-11-02T16:09:00.859Z',
     bank: 'Banco Estado',
     ...overrides,
   };
@@ -52,7 +53,7 @@ describe('KhipuPasarela', () => {
     });
 
     process.env.KHIPU_API_KEY = 'test-api-key';
-    process.env.KHIPU_API_BASE_URL = 'https://khipu.test/api/v3';
+    process.env.KHIPU_API_BASE_URL = 'https://khipu.test/v3';
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [KhipuPasarela],
@@ -91,7 +92,7 @@ describe('KhipuPasarela', () => {
         referenciaExterna: 'abc123xyz456',
         urlPago: 'https://khipu.com/payment/info/abc123xyz456',
       });
-      expect(url).toBe('https://khipu.test/api/v3/payments');
+      expect(url).toBe('https://khipu.test/v3/payments');
       expect(options.method).toBe('POST');
       expect(options.headers).toMatchObject({
         'Content-Type': 'application/json',
@@ -107,7 +108,7 @@ describe('KhipuPasarela', () => {
         return_url: SOLICITUD.urlRetorno,
         cancel_url: SOLICITUD.urlCancelacion,
         notify_url: SOLICITUD.urlNotificacion,
-        notify_api_version: '1.3',
+        notify_api_version: '3.0',
         expires_date: '2026-12-31T23:59:59Z',
       });
     });
@@ -149,7 +150,25 @@ describe('KhipuPasarela', () => {
   // ─── extraerReferenciaNotificacion ─────────────────────────────────────────
 
   describe('extraerReferenciaNotificacion', () => {
-    it('should read the notification token', () => {
+    it('should read the payment id sent by the 3.0 notification api', () => {
+      expect(
+        pasarela.extraerReferenciaNotificacion({
+          payment_id: 'abc123xyz456',
+          transaction_id: 'CGPA-PAY-2026-ABC123',
+        }),
+      ).toBe('abc123xyz456');
+    });
+
+    it('should prefer the payment id over a legacy notification token', () => {
+      expect(
+        pasarela.extraerReferenciaNotificacion({
+          payment_id: 'abc123xyz456',
+          notification_token: 'token-seguro',
+        }),
+      ).toBe('abc123xyz456');
+    });
+
+    it('should read the legacy notification token', () => {
       expect(
         pasarela.extraerReferenciaNotificacion({
           notification_token: 'token-seguro',
@@ -185,7 +204,7 @@ describe('KhipuPasarela', () => {
       const verificado = await pasarela.verificarPago('token-seguro');
 
       expect(mockFetch).toHaveBeenCalledWith(
-        'https://khipu.test/api/v3/payments/token-seguro',
+        'https://khipu.test/v3/payments/token-seguro',
         expect.objectContaining({
           method: 'GET',
           headers: expect.objectContaining({ 'x-api-key': 'test-api-key' }),
@@ -199,6 +218,7 @@ describe('KhipuPasarela', () => {
         estadoDetalle: 'normal',
         referenciaExterna: 'abc123xyz456',
         banco: 'Banco Estado',
+        pagadoEn: new Date('2026-11-02T16:09:00.859Z'),
       });
     });
 
@@ -231,6 +251,16 @@ describe('KhipuPasarela', () => {
       expect(verificado?.moneda).toBe('CLP');
     });
 
+    it('should ignore an unparseable conciliation date', async () => {
+      mockFetch.mockResolvedValue(
+        jsonResponse(makeDetalle({ conciliation_date: 'no-es-una-fecha' })),
+      );
+
+      const verificado = await pasarela.verificarPago('abc123xyz456');
+
+      expect(verificado).not.toHaveProperty('pagadoEn');
+    });
+
     it('should return null when Khipu does not report a transaction id', async () => {
       mockFetch.mockResolvedValue(
         jsonResponse(makeDetalle({ transaction_id: undefined })),
@@ -245,7 +275,7 @@ describe('KhipuPasarela', () => {
       await pasarela.verificarPago('a/b?c');
 
       expect(mockFetch.mock.calls[0][0]).toBe(
-        'https://khipu.test/api/v3/payments/a%2Fb%3Fc',
+        'https://khipu.test/v3/payments/a%2Fb%3Fc',
       );
     });
 
