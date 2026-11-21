@@ -50,6 +50,10 @@ vi.mock('../views/admin/AdminUsers.vue', () => ({
   default: { template: '<div class="admin-users" />' },
 }));
 
+vi.mock('../views/admin/AdminPagos.vue', () => ({
+  default: { template: '<div class="admin-pagos" />' },
+}));
+
 vi.mock('../views/Home.vue', () => ({
   default: { template: '<div class="home-view" />' },
 }));
@@ -185,6 +189,11 @@ describe('Router', () => {
     it('debe resolver usuarios como ruta anidada bajo /admin', () => {
       const resolved = router.resolve('/admin/usuarios');
       expect(resolved.name).toBe('AdminUsers');
+    });
+
+    it('debe resolver el historial de pagos bajo /admin', () => {
+      const resolved = router.resolve('/admin/pagos');
+      expect(resolved.name).toBe('AdminPagos');
     });
 
     it('debe resolver comunicados admin como ruta anidada', () => {

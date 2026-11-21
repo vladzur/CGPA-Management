@@ -17,6 +17,7 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { to: '/admin', label: 'Dashboard' },
+  { to: '/admin/pagos', label: 'Pagos', adminOnly: true },
   { to: '/admin/proyectos', label: 'Proyectos' },
   { to: '/admin/comunicados', label: 'Comunicados', adminOnly: true },
   { to: '/admin/documentos', label: 'Documentos', adminOnly: true },

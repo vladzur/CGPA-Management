@@ -95,6 +95,12 @@ const router = createRouter({
           component: () => import('../views/Dashboard.vue')
         },
         {
+          path: 'pagos',
+          name: 'AdminPagos',
+          component: () => import('../views/admin/AdminPagos.vue'),
+          meta: { requiresAdmin: true }
+        },
+        {
           path: 'usuarios',
           name: 'AdminUsers',
           component: () => import('../views/admin/AdminUsers.vue'),
