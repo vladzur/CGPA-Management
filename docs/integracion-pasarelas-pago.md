@@ -65,7 +65,7 @@ las páginas de confirmación/cancelación ni el modelo de datos.
 |---|---|
 | `pagos.controller.ts` | Rutas HTTP públicas y de administración. |
 | `pagos.service.ts` | Orquestador: crea cobros, aplica notificaciones, reconcilia y lista. |
-| `dto/create-pago.dto.ts` | Validación Zod del formulario (concepto, monto, nombre, correo). |
+| `dto/create-pago.dto.ts` | Validación Zod del formulario (tipo de aporte, monto, nombre, correo y estudiante opcional). |
 | `pasarelas/pasarela-pago.interface.ts` | Contrato `PasarelaPago` y token `PASARELAS_PAGO`. |
 | `pasarelas/pasarelas.service.ts` | Registro: resuelve una pasarela por identificador. |
 | `pasarelas/khipu/khipu-pasarela.ts` | Implementación Khipu. |
@@ -77,19 +77,24 @@ las páginas de confirmación/cancelación ni el modelo de datos.
 
 - `ProveedorPagoSchema` / `ProveedorPago`: pasarelas soportadas (`khipu`).
 - `EstadoPagoSchema` / `EstadoPago`: `PENDIENTE`, `PAGADO`, `CANCELADO`, `FALLIDO`.
+- `TipoAporteSchema` / `TipoAporte`: `CUOTA_ANUAL`, `DONACION`.
 - `PagoSchema` / `Pago`: documento persistido.
-- `ESTADO_PAGO_LABELS`, `PROVEEDOR_PAGO_LABELS`, `PROVEEDOR_PAGO_PREDETERMINADO`.
+- `ESTADO_PAGO_LABELS`, `PROVEEDOR_PAGO_LABELS`, `TIPO_APORTE_LABELS`,
+  `PROVEEDOR_PAGO_PREDETERMINADO`.
 - `PAGO_MONTO_MINIMO` (100), `PAGO_MONTO_MAXIMO` (10.000.000).
+- `CUOTA_ANUAL_PERIODO` (2027), `CUOTA_ANUAL_MONTO_SUGERIDO` (10.000),
+  `DONACION_MONTO_SUGERIDO` (10.000).
 
 ### 2.3 Frontend (`apps/client/src`)
 
 | Archivo | Rol |
 |---|---|
-| `views/Pagar.vue` | Formulario público; envía a `POST /pagos/:proveedor` y redirige a la URL devuelta. |
+| `views/Pagar.vue` | Formulario público con selector cuota/donación; envía a `POST /pagos/:proveedor` y redirige a la URL devuelta. |
 | `views/PagoConfirmacion.vue` | Retorno del apoderado: consulta `GET /pagos/:transactionId` cada 3 s (máx. 20 intentos) hasta un estado terminal. |
 | `views/PagoCancelado.vue` | Retorno cuando el apoderado abandona el pago. |
+| `views/admin/AdminPagos.vue` | Panel de solo lectura con los últimos 200 cobros, total confirmado y filtros por tipo/estado. |
 | `utils/pago-form.ts` | Validación del formulario y armado del payload (independiente del proveedor). |
-| `content/public-routes.ts` | Declara `/pagar`; los retornos quedan fuera del catálogo indexable. |
+| `content/public-routes.ts` | Declara `/pagar` y el interruptor `PAGOS_HABILITADOS`; los retornos quedan fuera del catálogo indexable. |
 
 ---
 
@@ -102,11 +107,14 @@ Colección de Firestore **`pagos`**, documento con id = `transaction_id`.
 | `transaction_id` | string | Referencia interna `CGPA-PAY-<año>-<16 hex>`. Es el id del documento. |
 | `proveedor` | `'khipu'` | Pasarela que procesó el cobro. |
 | `referencia_externa` | string? | Id del cobro en el proveedor. |
-| `token_notificacion` | string? | Token para verificar/reconciliar. **Nunca se expone en la API pública.** |
-| `asunto` | string | `CGPA - <concepto>`; lo que ve el apoderado. |
+| `token_notificacion` | string? | Referencia usada para verificar/reconciliar (en Khipu 3.0 coincide con el `payment_id`). **Nunca se expone en la API pública.** |
+| `asunto` | string | `CGPA - Cuota anual <año>` o `CGPA - Donación voluntaria`; lo que ve el pagador. |
 | `moneda` | `'CLP'` | Fija. |
 | `monto` | int | Pesos chilenos, sin decimales. |
-| `pagador_email` / `pagador_nombre` | string | Datos del apoderado (no se exponen en la consulta pública). |
+| `pagador_email` / `pagador_nombre` | string | Datos del pagador (no se exponen en la consulta pública). |
+| `tipo_aporte` | `'CUOTA_ANUAL' \| 'DONACION'`? | Tipo de aporte elegido. Opcional por compatibilidad con documentos antiguos. |
+| `periodo` | int? | Año de la cuota anual (solo cuando `tipo_aporte = CUOTA_ANUAL`). |
+| `estudiante` | string? | Estudiante o curso informado por el apoderado (solo cuota anual). **No se expone en la consulta pública.** |
 | `estado` | `EstadoPago` | Estado normalizado. |
 | `estado_detalle` | string? | Detalle informado por el proveedor. |
 | `banco` | string? | Banco de origen, si el proveedor lo informa. |
@@ -170,10 +178,12 @@ para contrastar contra el registro local.
 | `GET` | `/api/pagos` | `ADMIN` activo | Últimos 200 cobros, ordenados por `creado_en` desc, sin `token_notificacion` |
 
 `GET /api/pagos/:transactionId` devuelve solo `transaction_id`, `proveedor`, `asunto`, `moneda`,
-`monto`, `estado`, `estado_detalle`, `banco`, `pagado_en`, `creado_en` y `actualizado_en`.
+`monto`, `tipo_aporte`, `estado`, `estado_detalle`, `banco`, `pagado_en`, `creado_en` y
+`actualizado_en`.
 
-Si el cobro sigue `PENDIENTE` y ya tiene `token_notificacion`, la consulta reconcilia contra la
-pasarela antes de responder: el apoderado no depende de que el webhook haya llegado primero.
+Si el cobro sigue `PENDIENTE` y ya tiene `referencia_externa` (o `token_notificacion`), la consulta
+reconcilia contra la pasarela antes de responder: el apoderado no depende de que el webhook haya
+llegado primero.
 
 `PagosService.procesarNotificacion()` devuelve `{ actualizado, estado, transactionId }`. El
 `transactionId` corresponde al cobro ya verificado por la pasarela, de modo que un controlador de
@@ -181,14 +191,20 @@ retorno propio puede construir la redirección sin confiar en el cuerpo de la pe
 
 ### Flujo completo (Khipu)
 
-1. El apoderado completa `/pagar` y el cliente llama `POST /api/pagos/khipu`.
-2. El orquestador genera `transaction_id`, `return_url`, `cancel_url`, `notify_url` y `expires_date`;
+1. El pagador elige **Cuota anual 2027** o **Donación voluntaria** en `/pagar`. La cuota se
+   sugiere con un monto editable; la donación es de monto libre. En la cuota puede indicar
+   estudiante/curso.
+2. El cliente llama `POST /api/pagos/khipu` con `tipo_aporte`, `monto`, datos del pagador y
+   `estudiante` opcional. El backend deriva el asunto (`CGPA - Cuota anual 2027` o
+   `CGPA - Donación voluntaria`); el pagador no puede cambiarlo.
+3. El orquestador genera `transaction_id`, `return_url`, `cancel_url`, `notify_url` y `expires_date`;
    la pasarela crea el cobro y devuelve `payment_url`.
-3. El cliente redirige al portal del proveedor.
-4. El apoderado paga y vuelve a `/pagar/confirmacion?transaction_id=…`.
-5. El proveedor notifica a `POST /api/pagos/:proveedor/webhook`.
-6. El orquestador pide a la pasarela que **verifique el pago servidor a servidor** y aplica el
+4. El cliente redirige al portal del proveedor.
+5. El pagador paga y vuelve a `/pagar/confirmacion?transaction_id=…`.
+6. El proveedor notifica a `POST /api/pagos/:proveedor/webhook`.
+7. El orquestador pide a la pasarela que **verifique el pago servidor a servidor** y aplica el
    resultado de forma idempotente.
+8. La directiva revisa el cobro en `/admin/pagos` y lo concilia manualmente con la contabilidad.
 
 ---
 
@@ -201,16 +217,36 @@ Variables de `apps/api` (ver [`.env.example`](../apps/api/.env.example)):
 | `PUBLIC_API_URL` | No | URL pública de la API. De ella se deriva `<…>/pagos/<proveedor>/webhook`. Si falta, se usa `VERIFICATION_BASE_URL` + `/api`. |
 | `CLIENT_BASE_URL` | No | URL del frontend para `return_url` y `cancel_url`. Si falta, se usa `VERIFICATION_BASE_URL`. |
 | `PAGO_TTL_DIAS` | No | Vigencia de cada cobro en días (por defecto `7`). |
-| `PAGOS_COLECCION` | No | Colección de Firestore (por defecto `pagos`). Usa `pagos_sandbox` para pruebas funcionales. |
-| `KHIPU_API_KEY` | Sí, si Khipu está activo | Clave del portal de desarrolladores. |
-| `KHIPU_API_BASE_URL` | No | Base de la API v3. |
+| `PAGOS_COLECCION` | No | Colección de Firestore (por defecto `pagos`). En producción se fija explícitamente a `pagos`; `pagos_sandbox` queda solo para pruebas locales aisladas. |
+| `KHIPU_API_KEY` | Sí, si Khipu está activo | API Key de producción creada en el portal de Khipu (cabecera `x-api-key`). |
+| `KHIPU_API_BASE_URL` | No | Base de la API v3 (`https://payment-api.khipu.com/v3`). |
 
 Las credenciales de cada proveedor se inyectan en Cloud Run desde GitHub Secrets
 (`.github/workflows/release-deploy.yml`). En desarrollo local, el webhook exige una URL accesible
 desde internet: expón la API con un túnel (`ngrok http 3000`) y usa esa URL en `PUBLIC_API_URL`.
 
-El procedimiento completo para validar la integración con credenciales de sandbox está en
-[prueba-funcional-khipu-sandbox.md](prueba-funcional-khipu-sandbox.md).
+> La **llave de cobrador** (merchant secret) que aparece en el perfil de Khipu no es la API Key:
+> se usa para verificar la firma HMAC del webhook y no se guarda en el repositorio. Esta entrega
+> no implementa la verificación de `x-khipu-signature`; la verificación autenticada servidor a
+> servidor es el control principal.
+
+Pruebas funcionales:
+
+- [prueba-funcional-khipu-produccion.md](prueba-funcional-khipu-produccion.md) — flujo real en
+  producción con el botón oculto (recomendado cuando el ISP impide exponer el backend local).
+- [prueba-funcional-khipu-sandbox.md](prueba-funcional-khipu-sandbox.md) — alternativa local con
+  túnel y credenciales de integración.
+
+### Publicación controlada del botón
+
+`apps/client/src/content/public-routes.ts` expone `PAGOS_HABILITADOS`:
+
+- `false`: `/pagar` se sigue prerenderizando y se puede abrir directo para QA, pero no aparece en
+  el menú, el pie ni el sitemap.
+- `true`: el enlace se publica en los tres lugares. Requiere un nuevo release.
+
+El catálogo `PUBLIC_ROUTES` conserva la ruta para los metadatos y el prerender;
+`PUBLIC_NAV_ROUTES` es la lista que alimenta el menú, el pie y el sitemap.
 
 ---
 
@@ -224,7 +260,9 @@ El procedimiento completo para validar la integración con credenciales de sandb
    generan escrituras.
 4. **Coherencia**: se descarta la notificación si el proveedor no coincide con el del cobro o si el
    monto/moneda no coinciden.
-5. **Datos personales**: la consulta pública omite correo, nombre y `token_notificacion`.
+5. **Datos personales**: la consulta pública omite correo, nombre, estudiante/curso y
+   `token_notificacion`. El panel `/admin/pagos` los muestra solo a un ADMIN activo, autenticado
+   contra la API.
 6. **Firestore**: las reglas bloquean cualquier lectura/escritura directa a `pagos`; solo el Admin
    SDK opera la colección.
 7. **Trazabilidad**: los errores de comunicación se registran con `Logger` (nunca se registran
@@ -433,10 +471,10 @@ Aunque el contrato es el mismo, el protocolo difiere de Khipu en puntos que afec
 | Aspecto | Khipu | Webpay Plus |
 |---|---|---|
 | Inicio | `POST /payments` → `payment_url` | `POST …/transactions` → `token` + `url` |
-| Verificación | `GET /payments/{notification_token}` | `PUT …/transactions/{token}` (*commit*) |
+| Verificación | `GET /v3/payments/{payment_id}` | `PUT …/transactions/{token}` (*commit*) |
 | Retorno | `GET` a `return_url` (SPA) | `POST` de Transbank a `return_url` con `token_ws` |
 | Cancelación | `cancel_url` + `POST` de retorno | Transbank envía `TBK_TOKEN` (abortado) |
-| Estados | `done`, `verifying`, `cancelled` | `AUTHORIZED`, `FAILED`, `INITIALIZED`, `NULLIFIED` |
+| Estados | `done`, `verifying`, `pending` | `AUTHORIZED`, `FAILED`, `INITIALIZED`, `NULLIFIED` |
 | Credenciales | `x-api-key` | `Tbk-Api-Key-Id` + `Tbk-Api-Key-Secret` |
 
 Implicancias concretas:

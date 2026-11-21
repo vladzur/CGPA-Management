@@ -28,7 +28,7 @@ Khipu utiliza un esquema de **Cobro por Redirección y Notificación Asíncrona 
       │                                           │    Webhook (POST)      │
       │                                           │                        │
       │                                           │── 8. GET /payments ───>│
-      │                                           │   /{notification_token}│
+      │                                           │   /{payment_id}        │
       │                                           │<── 9. Retorna Pago ────│
       │                                           │       validado         │
       │                                           │                        │
@@ -60,22 +60,22 @@ x-api-key: <TU_KHIPU_API_KEY>
 Crea un intent de pago y devuelve la URL a la cual se debe redirigir al apoderado.
 
 * **Método:** `POST`
-* **URL:** `https://khipu.com/api/v3/payments`
+* **URL:** `https://payment-api.khipu.com/v3/payments`
 
 #### Cuerpo de la Petición (Request Body - JSON)
 
 ```json
 {
-  "subject": "Cuota Anual CGPA 2026 - Familia Pérez",
+  "subject": "CGPA - Cuota anual 2027",
   "currency": "CLP",
-  "amount": 25000,
-  "transaction_id": "CGPA-PAY-2026-00123",
+  "amount": 10000,
+  "transaction_id": "CGPA-PAY-2027-4F3A9C2E1B7D8056",
   "payer_email": "apoderado@ejemplo.cl",
   "payer_name": "Juan Pérez",
-  "return_url": "https://app.cgpa.cl/pagos/confirmacion",
-  "cancel_url": "https://app.cgpa.cl/pagos/cancelado",
-  "notify_url": "https://api.cgpa.cl/v1/payments/khipu/webhook",
-  "notify_api_version": "1.3",
+  "return_url": "https://cgpagrahambell.cl/pagar/confirmacion",
+  "cancel_url": "https://cgpagrahambell.cl/pagar/cancelado",
+  "notify_url": "https://cgpagrahambell.cl/api/pagos/khipu/webhook",
+  "notify_api_version": "3.0",
   "expires_date": "2026-12-31T23:59:59Z"
 }
 ```
@@ -112,17 +112,34 @@ Crea un intent de pago y devuelve la URL a la cual se debe redirigir al apoderad
 Khipu notificará a la `notify_url` configurada mediante una petición HTTP POST cuando el pago cambie de estado.
 
 * **Método enviador por Khipu:** `POST`
-* **Formato:** `application/x-www-form-urlencoded` o `application/json`
+* **Formato:** `application/json` (API de notificaciones `3.0`)
+
+Los cobros creados con la API `3.0` solo admiten notificaciones `3.0`: el cuerpo
+del webhook trae los datos del pago conciliado y **no** incluye
+`notification_token`. El identificador que se usa para verificar es
+`payment_id`.
 
 #### Payload Recibido en Webhook
 
 ```json
 {
-  "notification_token": "token_de_notificacion_seguro_789xyz"
+  "payment_id": "abc123xyz456",
+  "receiver_id": 532013,
+  "subject": "CGPA - Cuota anual 2027",
+  "amount": "10000.0000",
+  "currency": "CLP",
+  "transaction_id": "CGPA-PAY-2027-4F3A9C2E1B7D8056",
+  "bank": "Banco Estado",
+  "payer_name": "Juan Pérez",
+  "payer_email": "apoderado@ejemplo.cl",
+  "conciliation_date": "2026-11-02T16:09:00.859Z"
 }
 ```
 
-> **REGLA DE SEGURIDAD CRÍTICA:** Nunca marques un pago como completado basándote únicamente en los datos recibidos en el cuerpo del webhook. Debes usar el `notification_token` para hacer una consulta de verificación servidor a servidor.
+La cabecera `x-khipu-signature` (`t=<timestamp ms>,s=<hmac-sha256>`) permite
+además verificar que el cuerpo no fue alterado.
+
+> **REGLA DE SEGURIDAD CRÍTICA:** Nunca marques un pago como completado basándote únicamente en los datos recibidos en el cuerpo del webhook. Debes usar el `payment_id` para hacer una consulta de verificación servidor a servidor.
 
 ---
 
@@ -131,7 +148,7 @@ Khipu notificará a la `notify_url` configurada mediante una petición HTTP POST
 Obtiene el detalle y valida el pago una vez recibido el Webhook.
 
 * **Método:** `GET`
-* **URL:** `https://khipu.com/api/v3/payments/{notification_token}`
+* **URL:** `https://payment-api.khipu.com/v3/payments/{payment_id}`
 
 #### Encabezados
 
@@ -144,8 +161,8 @@ x-api-key: <TU_KHIPU_API_KEY>
 ```json
 {
   "payment_id": "abc123xyz456",
-  "subject": "Cuota Anual CGPA 2026 - Familia Pérez",
-  "amount": 25000,
+  "subject": "CGPA - Cuota anual 2027",
+  "amount": "10000.0000",
   "currency": "CLP",
   "status": "done",
   "status_detail": "normal",
@@ -153,22 +170,26 @@ x-api-key: <TU_KHIPU_API_KEY>
   "payer_email": "apoderado@ejemplo.cl",
   "receipt_url": "https://khipu.com/payment/receipt/abc123xyz456",
   "notification_token": "token_de_notificacion_seguro_789xyz",
-  "transaction_id": "CGPA-PAY-2026-00123",
+  "transaction_id": "CGPA-PAY-2027-4F3A9C2E1B7D8056",
   "custom": "",
-  "account_id": "12345",
-  "ready_for_terminal": false,
   "bank": "Banco Estado",
   "bank_id": "012",
   "payer_name": "Juan Pérez",
-  "transfer_date": "2026-11-02T16:09:00Z"
+  "conciliation_date": "2026-11-02T16:09:00.859Z"
 }
 ```
 
 #### Posibles Estados (`status`)
 
-* `done`: Pago verificado y acreditado correctamente (**Marcar cuota como PAGADA**).
-* `verifying`: Pago recibido, en proceso de verificación bancaria.
-* `cancelled`: El apoderado canceló la operación o expiró.
+| Khipu | Estado interno |
+|:--|:--|
+| `done` | `PAGADO` |
+| `verifying` | `PENDIENTE` |
+| `pending` | `PENDIENTE` |
+
+Khipu **no** informa `cancelled` ni `failed` como estado del pago: un cobro que
+el apoderado abandona permanece `pending` hasta su `expires_date`. Los detalles
+de rechazo llegan en `status_detail` (`rejected-by-payer`, `marked-as-abuse`).
 
 ---
 
@@ -181,7 +202,7 @@ CREATE TABLE khipu_payments (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     transaction_id VARCHAR(100) NOT NULL UNIQUE, -- Referencia interna CGPA
     khipu_payment_id VARCHAR(100),                -- Retornado en createPayment
-    notification_token VARCHAR(255),              -- Retornado en Webhook
+    notification_token VARCHAR(255),              -- Solo notificaciones 1.3 (legacy)
     amount INT NOT NULL,
     payer_email VARCHAR(150) NOT NULL,
     status VARCHAR(30) NOT NULL DEFAULT 'PENDING',-- PENDING, PAID, CANCELLED, FAILED

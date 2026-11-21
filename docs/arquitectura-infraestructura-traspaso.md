@@ -174,8 +174,14 @@ Estas variables se inyectan en el deploy desde el pipeline `release-deploy.yml` 
 |---|---|---|
 | `FIREBASE_STORAGE_BUCKET` | Bucket de Storage para subir comprobantes | GitHub Secret `FIREBASE_STORAGE_BUCKET` |
 | `DOCUMENT_SALT` | Salt para hash SHA-256 del sellado de documentos | GitHub Secret `DOCUMENT_SALT` |
-| `VERIFICATION_BASE_URL` | URL base para links de verificación QR | GitHub Secret `VERIFICATION_BASE_URL` |
+| `VERIFICATION_BASE_URL` | URL base para links de verificación QR y fallback de URLs de pago | GitHub Secret `VERIFICATION_BASE_URL` |
 | `CGPA_RUT` | RUT del CGPA para PDFs de libro de balance | GitHub Secret `CGPA_RUT` |
+| `PUBLIC_API_URL` | URL pública de la API para el webhook de pagos | Workflow (valor de producción) |
+| `CLIENT_BASE_URL` | URL del frontend para `return_url`/`cancel_url` | Workflow (valor de producción) |
+| `PAGO_TTL_DIAS` | Vigencia de un cobro de pago (días) | Workflow (`7`) |
+| `PAGOS_COLECCION` | Colección de Firestore de pagos | Workflow (`pagos` en producción) |
+| `KHIPU_API_KEY` | API Key de Khipu v3 para crear/verificar cobros | GitHub Secret `KHIPU_API_KEY` |
+| `KHIPU_API_BASE_URL` | Base de la API v3 de Khipu | Workflow (`https://payment-api.khipu.com/v3`) |
 
 > El backend en Cloud Run se autoconfigura con **Application Default Credentials (ADC)**. No necesita key files: Cloud Run obtiene las credenciales automáticamente de la cuenta de servicio del runtime.
 
@@ -202,6 +208,7 @@ Estas variables se inyectan en el deploy desde el pipeline `release-deploy.yml` 
 | `comunicados` | Comunicados publicados | Pública | Solo backend |
 | `documentos` | Documentos oficiales | Pública | Solo backend |
 | `mensajes` | Mensajes recibidos desde el formulario de contacto del sitio | Solo ADMIN activo | Solo backend |
+| `pagos` | Cobros del botón de pago Khipu (cuota anual y donaciones) | Solo vía API (`/admin/pagos` para ADMIN) | Solo backend |
 
 ### Índices compuestos activos
 
@@ -288,6 +295,7 @@ git push origin v1.2.3
 | `DOCUMENT_SALT` | Release (Cloud Run env var) |
 | `VERIFICATION_BASE_URL` | Release (Cloud Run env var) |
 | `CGPA_RUT` | Release (Cloud Run env var) |
+| `KHIPU_API_KEY` | Release (Cloud Run env var) |
 
 > `VITE_FIREBASE_MEASUREMENT_ID` (Google Analytics) se define como **Variable de repositorio**, no como secreto: su valor es público y viaja en el bundle del cliente. Si falta, el sitio no registra analítica.
 

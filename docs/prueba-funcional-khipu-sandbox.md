@@ -1,5 +1,9 @@
 # Prueba Funcional — Sandbox de Khipu
 
+> **Si tu ISP no permite exponer el backend local**, la alternativa recomendada es la
+> [prueba funcional en producción](prueba-funcional-khipu-produccion.md), que usa el mismo código
+> con el botón oculto.
+
 > **Objetivo:** validar el flujo de pago completo contra el entorno de integración de Khipu
 > **antes** de publicar en `master`, sin mover dinero real y sin ensuciar los datos del CGPA.
 >
@@ -56,7 +60,7 @@ sudo snap install ngrok
 ```dotenv
 # Credenciales de INTEGRACIÓN (sandbox), no las de producción.
 KHIPU_API_KEY="<clave-de-integracion>"
-KHIPU_API_BASE_URL="https://khipu.com/api/v3"
+KHIPU_API_BASE_URL="https://payment-api.khipu.com/v3"
 
 # El webhook debe ser alcanzable desde internet: reemplaza por tu URL de ngrok.
 PUBLIC_API_URL="https://<subdominio>.ngrok-free.app/api"
@@ -116,7 +120,8 @@ Si devuelve 404, el rewrite o `PUBLIC_API_URL` están mal: Khipu nunca podrá no
 
 1. Abre `http://localhost:5173/pagar`.
 2. Completa nombre y correo reales (Khipu envía el comprobante), deja **Cuota anual 2027** y el
-   monto `10000`.
+   monto `10000`; opcionalmente indica estudiante/curso. Para probar el segundo flujo, repite con
+   **Donación voluntaria** y un monto libre.
 3. Pulsa **Pagar con Khipu** y confirma que el navegador salta al portal de integración.
 4. Paga con los datos de prueba que entrega el portal de Khipu.
 5. Al volver, revisa `/pagar/confirmacion?transaction_id=…`:
@@ -146,9 +151,10 @@ La colección `pagos` (real) no debe tener documentos nuevos.
 
 | Caso | Cómo provocarlo | Resultado esperado |
 |---|---|---|
-| Cancelación | Abandonar el portal de Khipu | Retorno a `/pagar/cancelado`; estado `CANCELADO` |
+| Cancelación | Abandonar el portal de Khipu | Retorno a `/pagar/cancelado`; el cobro sigue `PENDIENTE` (Khipu no notifica cancelaciones) |
+| Donación | Seleccionar “Donación voluntaria” y pagar | `tipo_aporte = DONACION`, sin `periodo` ni `estudiante` |
 | Notificación duplicada | Reenviar el mismo POST del webhook | `200` sin cambios; log `actualizado: false` |
-| Notificación sin token | `POST /pagos/khipu/webhook` con `{}` | `200` con `{recibido:true, estado:null}` |
+| Notificación sin `payment_id` | `POST /pagos/khipu/webhook` con `{}` | `200` con `{recibido:true, estado:null}` |
 | Monto alterado | Modificar `monto` en el documento de Firestore y reenviar el webhook | Log `Discrepancia en el pago`; el estado no cambia |
 | Pasarela inexistente | `POST /api/pagos/webpay` | `400 Método de pago no soportado: webpay` |
 
@@ -186,7 +192,7 @@ No requiere cambios de código: el entorno se define por configuración.
 | Variable | Sandbox | Producción |
 |---|---|---|
 | `KHIPU_API_KEY` | Clave de integración | Clave real de la cuenta del CGPA |
-| `KHIPU_API_BASE_URL` | Host de integración (si difiere) | `https://khipu.com/api/v3` |
+| `KHIPU_API_BASE_URL` | Host de integración (si difiere) | `https://payment-api.khipu.com/v3` |
 | `PUBLIC_API_URL` | Túnel de ngrok | `https://cgpagrahambell.cl/api` |
 | `CLIENT_BASE_URL` | `http://localhost:5173` | `https://cgpagrahambell.cl` |
 | `PAGOS_COLECCION` | `pagos_sandbox` | `pagos` |
