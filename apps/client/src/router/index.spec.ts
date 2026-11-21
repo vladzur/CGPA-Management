@@ -50,6 +50,10 @@ vi.mock('../views/admin/AdminUsers.vue', () => ({
   default: { template: '<div class="admin-users" />' },
 }));
 
+vi.mock('../views/admin/AdminPagos.vue', () => ({
+  default: { template: '<div class="admin-pagos" />' },
+}));
+
 vi.mock('../views/Home.vue', () => ({
   default: { template: '<div class="home-view" />' },
 }));
@@ -68,6 +72,18 @@ vi.mock('../views/Transparency.vue', () => ({
 
 vi.mock('../views/Contact.vue', () => ({
   default: { template: '<div class="contact-view" />' },
+}));
+
+vi.mock('../views/Pagar.vue', () => ({
+  default: { template: '<div class="pagar-view" />' },
+}));
+
+vi.mock('../views/PagoConfirmacion.vue', () => ({
+  default: { template: '<div class="pago-confirmacion-view" />' },
+}));
+
+vi.mock('../views/PagoCancelado.vue', () => ({
+  default: { template: '<div class="pago-cancelado-view" />' },
 }));
 
 vi.mock('../views/admin/AdminMessages.vue', () => ({
@@ -120,6 +136,17 @@ describe('Router', () => {
       expect(router.resolve('/contacto').name).toBe('Contact');
     });
 
+    it('debe resolver la página del botón de pago Khipu', () => {
+      expect(router.resolve('/pagar').name).toBe('Pagar');
+    });
+
+    it('debe resolver los retornos de Khipu fuera del catálogo indexable', () => {
+      expect(router.resolve('/pagar/confirmacion').name).toBe(
+        'PagoConfirmacion',
+      );
+      expect(router.resolve('/pagar/cancelado').name).toBe('PagoCancelado');
+    });
+
     it('debe resolver la ruta de login', () => {
       expect(router.resolve('/login').name).toBe('Login');
     });
@@ -162,6 +189,11 @@ describe('Router', () => {
     it('debe resolver usuarios como ruta anidada bajo /admin', () => {
       const resolved = router.resolve('/admin/usuarios');
       expect(resolved.name).toBe('AdminUsers');
+    });
+
+    it('debe resolver el historial de pagos bajo /admin', () => {
+      const resolved = router.resolve('/admin/pagos');
+      expect(resolved.name).toBe('AdminPagos');
     });
 
     it('debe resolver comunicados admin como ruta anidada', () => {

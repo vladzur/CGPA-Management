@@ -22,7 +22,10 @@ vi.mock('vue-router', () => ({
 
 import PublicLayout from './PublicLayout.vue';
 import { ORGANIZATION, PENDING_LABEL } from '../content/institutional';
-import { PUBLIC_ROUTES } from '../content/public-routes';
+import {
+  PUBLIC_NAV_ROUTES,
+  PUBLIC_ROUTES,
+} from '../content/public-routes';
 
 function mountLayout() {
   return mount(PublicLayout, {
@@ -51,19 +54,29 @@ describe('PublicLayout', () => {
     expect(text).toContain('Villarrica');
   });
 
-  it('should render a navigation link for every public route', () => {
+  it('should render a navigation link for every published public route', () => {
     const wrapper = mountLayout();
     const links = wrapper.findAll('a').map((link) => link.attributes('href'));
 
-    for (const route of PUBLIC_ROUTES) {
+    for (const route of PUBLIC_NAV_ROUTES) {
       expect(links).toContain(route.path);
     }
   });
 
-  it('should render the navigation labels of every public route', () => {
+  it('should not link routes hidden from the navigation', () => {
+    const links = mountLayout()
+      .findAll('a')
+      .map((link) => link.attributes('href'));
+
+    for (const route of PUBLIC_ROUTES.filter((item) => item.oculta)) {
+      expect(links).not.toContain(route.path);
+    }
+  });
+
+  it('should render the navigation labels of every published public route', () => {
     const text = mountLayout().text();
 
-    for (const route of PUBLIC_ROUTES) {
+    for (const route of PUBLIC_NAV_ROUTES) {
       expect(text).toContain(route.navLabel);
     }
   });

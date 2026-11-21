@@ -45,6 +45,23 @@ const router = createRouter({
           component: () => import('../views/ComunicadosPublic.vue')
         },
         {
+          path: 'pagar',
+          name: 'Pagar',
+          component: () => import('../views/Pagar.vue')
+        },
+        // Retornos de la pasarela: no se indexan ni se prerenderizan, solo
+        // cierran el flujo iniciado desde /pagar.
+        {
+          path: 'pagar/confirmacion',
+          name: 'PagoConfirmacion',
+          component: () => import('../views/PagoConfirmacion.vue')
+        },
+        {
+          path: 'pagar/cancelado',
+          name: 'PagoCancelado',
+          component: () => import('../views/PagoCancelado.vue')
+        },
+        {
           path: 'contacto',
           name: 'Contact',
           component: () => import('../views/Contact.vue')
@@ -76,6 +93,12 @@ const router = createRouter({
           path: '',
           name: 'Dashboard',
           component: () => import('../views/Dashboard.vue')
+        },
+        {
+          path: 'pagos',
+          name: 'AdminPagos',
+          component: () => import('../views/admin/AdminPagos.vue'),
+          meta: { requiresAdmin: true }
         },
         {
           path: 'usuarios',

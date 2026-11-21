@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
+  PAGOS_HABILITADOS,
+  PUBLIC_NAV_ROUTES,
   PUBLIC_ROUTES,
   publicRouteOutputFile,
 } from '../content/public-routes';
@@ -30,6 +32,9 @@ vi.mock('../views/PublicProjects.vue', () => ({ default: { template: '<div />' }
 vi.mock('../views/Transparency.vue', () => ({ default: { template: '<div />' } }));
 vi.mock('../views/ComunicadosPublic.vue', () => ({ default: { template: '<div />' } }));
 vi.mock('../views/Contact.vue', () => ({ default: { template: '<div />' } }));
+vi.mock('../views/Pagar.vue', () => ({ default: { template: '<div />' } }));
+vi.mock('../views/PagoConfirmacion.vue', () => ({ default: { template: '<div />' } }));
+vi.mock('../views/PagoCancelado.vue', () => ({ default: { template: '<div />' } }));
 
 import router from './index';
 
@@ -73,6 +78,22 @@ describe('public route catalogue', () => {
     expect(PUBLIC_ROUTES[0].name).toBe('Home');
   });
 
+  it('should expose only published routes in the navigation', () => {
+    expect(PUBLIC_NAV_ROUTES).toEqual(
+      PUBLIC_ROUTES.filter((route) => !route.oculta),
+    );
+  });
+
+  it('should keep the payment page in the catalogue while it is hidden', () => {
+    const pagar = PUBLIC_ROUTES.find((route) => route.path === '/pagar');
+
+    expect(pagar).toBeDefined();
+    expect(pagar!.oculta).toBe(!PAGOS_HABILITADOS);
+
+    const navPaths: string[] = PUBLIC_NAV_ROUTES.map((route) => route.path);
+    expect(navPaths.includes('/pagar')).toBe(PAGOS_HABILITADOS);
+  });
+
   it('should exclude internal and verification routes from the catalogue', () => {
     const paths = PUBLIC_ROUTES.map((route) => route.path);
 
@@ -80,6 +101,8 @@ describe('public route catalogue', () => {
     expect(paths).not.toContain('/login');
     expect(paths).not.toContain('/registro-interno-agb');
     expect(paths.some((path) => path.startsWith('/validar'))).toBe(false);
+    expect(paths).not.toContain('/pagar/confirmacion');
+    expect(paths).not.toContain('/pagar/cancelado');
   });
 
   it('should map the home route to index.html', () => {
@@ -90,6 +113,7 @@ describe('public route catalogue', () => {
     expect(publicRouteOutputFile('/nosotros')).toBe('nosotros.html');
     expect(publicRouteOutputFile('/transparencia')).toBe('transparencia.html');
     expect(publicRouteOutputFile('/contacto/')).toBe('contacto.html');
+    expect(publicRouteOutputFile('/pagar')).toBe('pagar.html');
   });
 
   it('should generate one output file per catalogued route', () => {

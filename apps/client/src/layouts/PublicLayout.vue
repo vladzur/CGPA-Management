@@ -13,7 +13,7 @@ import {
   buildLegalIdentityStatement,
   formatAddress,
 } from '../content/institutional';
-import { PUBLIC_ROUTES } from '../content/public-routes';
+import { PUBLIC_NAV_ROUTES } from '../content/public-routes';
 
 const route = useRoute();
 
@@ -52,7 +52,7 @@ const isActive = (path: string): boolean =>
       <!-- Navegación de escritorio -->
       <nav class="flex-none hidden lg:flex" aria-label="Navegación principal">
         <ul class="menu menu-horizontal px-1 gap-1">
-          <li v-for="item in PUBLIC_ROUTES" :key="item.path">
+          <li v-for="item in PUBLIC_NAV_ROUTES" :key="item.path">
             <RouterLink
               :to="item.path"
               :class="{ 'active bg-primary/10 text-primary font-semibold': isActive(item.path) }"
@@ -91,7 +91,7 @@ const isActive = (path: string): boolean =>
           <ul
             class="menu menu-sm dropdown-content mt-3 z-[1] p-2 shadow bg-base-100 rounded-box w-60"
           >
-            <li v-for="item in PUBLIC_ROUTES" :key="item.path">
+            <li v-for="item in PUBLIC_NAV_ROUTES" :key="item.path">
               <RouterLink
                 :to="item.path"
                 :class="{ 'active bg-primary/10 text-primary font-semibold': isActive(item.path) }"
@@ -149,7 +149,7 @@ const isActive = (path: string): boolean =>
           <div>
             <h2 class="footer-title opacity-100 mb-3">Sitio</h2>
             <ul class="text-sm space-y-1">
-              <li v-for="item in PUBLIC_ROUTES" :key="item.path">
+              <li v-for="item in PUBLIC_NAV_ROUTES" :key="item.path">
                 <RouterLink :to="item.path" class="link link-hover opacity-90">
                   {{ item.navLabel }}
                 </RouterLink>

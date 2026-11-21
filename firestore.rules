@@ -72,6 +72,15 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // Pagos: contienen correos, tokens de notificación y montos, de cualquier
+    // pasarela. El estado solo cambia por el webhook verificado del backend
+    // (Admin SDK), y la consulta pública se hace a través de /api/pagos/:id,
+    // que no expone datos personales.
+    match /pagos/{pagoId} {
+      allow read: if false;
+      allow write: if false;
+    }
+
     // Usuarios: solo acceso para ADMIN, escrituras vía backend
     match /usuarios/{document=**} {
       allow read: if request.auth != null && request.auth.token.role == 'ADMIN';

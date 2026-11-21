@@ -70,6 +70,7 @@ describe('AdminLayout', () => {
     const text = wrapper.text();
 
     expect(text).toContain('Dashboard');
+    expect(text).toContain('Pagos');
     expect(text).toContain('Proyectos');
     expect(text).toContain('Comunicados');
     expect(text).toContain('Usuarios');
@@ -84,6 +85,7 @@ describe('AdminLayout', () => {
 
     expect(text).toContain('Dashboard');
     expect(text).toContain('Proyectos');
+    expect(text).not.toContain('Pagos');
     expect(text).not.toContain('Comunicados');
     expect(text).not.toContain('Usuarios');
   });

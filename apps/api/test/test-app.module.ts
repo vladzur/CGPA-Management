@@ -17,6 +17,14 @@ import { ComunicadosController } from '../src/comunicados/comunicados.controller
 import { ComunicadosService } from '../src/comunicados/comunicados.service';
 import { MensajesController } from '../src/mensajes/mensajes.controller';
 import { MensajesService } from '../src/mensajes/mensajes.service';
+import { PagosController } from '../src/pagos/pagos.controller';
+import { PagosService } from '../src/pagos/pagos.service';
+import { PasarelasService } from '../src/pagos/pasarelas/pasarelas.service';
+import { KhipuPasarela } from '../src/pagos/pasarelas/khipu/khipu-pasarela';
+import {
+  PASARELAS_PAGO,
+  type PasarelaPago,
+} from '../src/pagos/pasarelas/pasarela-pago.interface';
 import { StorageService } from '../src/storage/storage.service';
 import { AuditService } from '../src/common/audit/audit.service';
 import { CryptoSealService } from '../src/common/crypto/crypto-seal.service';
@@ -29,6 +37,7 @@ import { CryptoSealService } from '../src/common/crypto/crypto-seal.service';
     UsuariosController,
     ComunicadosController,
     MensajesController,
+    PagosController,
   ],
   providers: [
     AppService,
@@ -37,6 +46,14 @@ import { CryptoSealService } from '../src/common/crypto/crypto-seal.service';
     UsuariosService,
     ComunicadosService,
     MensajesService,
+    PagosService,
+    PasarelasService,
+    KhipuPasarela,
+    {
+      provide: PASARELAS_PAGO,
+      inject: [KhipuPasarela],
+      useFactory: (...pasarelas: PasarelaPago[]) => pasarelas,
+    },
     StorageService,
     AuditService,
     CryptoSealService,

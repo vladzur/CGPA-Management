@@ -32,9 +32,8 @@ const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const clientRoot = path.resolve(scriptDir, '..');
 const distDir = path.join(clientRoot, 'dist');
 
-const { PUBLIC_ROUTES, publicRouteOutputFile } = await import(
-  '../src/content/public-routes.ts'
-);
+const { PUBLIC_ROUTES, PUBLIC_NAV_ROUTES, publicRouteOutputFile } =
+  await import('../src/content/public-routes.ts');
 
 const MIME_TYPES = {
   '.html': 'text/html; charset=utf-8',
@@ -258,7 +257,7 @@ function startStaticServer(shellPath) {
 function buildSitemap() {
   const today = new Date().toISOString().slice(0, 10);
 
-  const urls = PUBLIC_ROUTES.map((route) => {
+  const urls = PUBLIC_NAV_ROUTES.map((route) => {
     const loc = route.path === '/' ? '/' : route.path;
     return [
       '  <url>',
