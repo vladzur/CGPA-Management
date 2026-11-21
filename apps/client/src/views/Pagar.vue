@@ -2,14 +2,18 @@
 /**
  * Página pública del botón de pago.
  *
- * El apoderado indica sus datos, el motivo y el monto; el backend crea el cobro
- * con la pasarela configurada y devuelve la URL del portal de pago, a la que se
- * redirige para completar la transacción.
+ * El pagador elige entre la cuota anual y una donación voluntaria, indica sus
+ * datos y el monto; el backend crea el cobro con la pasarela configurada y
+ * devuelve la URL del portal de pago, a la que se redirige para completar la
+ * transacción.
  */
-import { reactive, ref } from 'vue';
+import { reactive, ref, watch } from 'vue';
 import apiClient from '../plugins/axios';
 import { usePageMeta } from '../composables/usePageMeta';
 import {
+  CUOTA_ANUAL_MONTO_SUGERIDO,
+  CUOTA_ANUAL_PERIODO,
+  DONACION_MONTO_SUGERIDO,
   PROVEEDOR_PAGO_LABELS,
   PROVEEDOR_PAGO_PREDETERMINADO,
   PAGO_MONTO_MAXIMO,
@@ -20,6 +24,7 @@ import {
   PAGO_MONTO_PREDETERMINADO,
   buildPagoPayload,
   createDefaultPagoForm,
+  montoSugeridoPara,
   redirectToPaymentPortal,
   validatePagoForm,
   type PagoFormErrors,
@@ -36,6 +41,21 @@ const errorMessage = ref('');
 const proveedor = PROVEEDOR_PAGO_LABELS[PROVEEDOR_PAGO_PREDETERMINADO];
 const montoMinimo = formatCurrency(PAGO_MONTO_MINIMO);
 const montoMaximo = formatCurrency(PAGO_MONTO_MAXIMO);
+const montoCuotaSugerido = formatCurrency(CUOTA_ANUAL_MONTO_SUGERIDO);
+const montoDonacionSugerido = formatCurrency(DONACION_MONTO_SUGERIDO);
+
+// Al cambiar de tipo, ajusta el monto solo si el pagador no lo modificó y
+// limpia el estudiante al pasar a una donación.
+watch(
+  () => form.tipoAporte,
+  (nuevo, anterior) => {
+    if (form.monto === montoSugeridoPara(anterior)) {
+      form.monto = montoSugeridoPara(nuevo);
+    }
+
+    if (nuevo === 'DONACION') form.estudiante = '';
+  },
+);
 
 const resetFeedback = (): void => {
   errors.value = {};
@@ -79,11 +99,11 @@ const handleSubmit = async (): Promise<void> => {
   <div>
     <section class="bg-gradient-to-r from-liceo-primary to-liceo-secondary text-white">
       <div class="container mx-auto px-4 md:px-8 py-12 md:py-16">
-        <h1 class="text-3xl md:text-4xl font-bold">Pagar cuota</h1>
+        <h1 class="text-3xl md:text-4xl font-bold">Pagar cuota o donar</h1>
         <p class="mt-3 max-w-3xl opacity-95">
-          Realiza tu aporte al Centro General de Padres y Apoderados mediante una
-          transferencia bancaria simplificada. Serás redirigido al portal seguro
-          de {{ proveedor }} para completar el pago.
+          Paga la cuota anual {{ CUOTA_ANUAL_PERIODO }} o realiza una donación
+          voluntaria al Centro General de Padres y Apoderados. Serás redirigido
+          al portal seguro de {{ proveedor }} para completar el pago.
         </p>
       </div>
     </section>
@@ -95,12 +115,10 @@ const handleSubmit = async (): Promise<void> => {
           <div class="card-body">
             <h2 class="card-title text-lg">¿Cómo funciona?</h2>
             <ol class="mt-2 space-y-4 text-sm list-decimal list-inside">
+              <li>Elige cuota anual o donación y completa tus datos.</li>
               <li>
-                Completa tus datos y el monto del aporte en el formulario.
-              </li>
-              <li>
-                Te redirigimos a {{ proveedor }}, donde podrás transferir desde tu
-                banco de forma segura.
+                Te redirigimos a {{ proveedor }}, donde podrás transferir desde
+                tu banco de forma segura.
               </li>
               <li>
                 Al volver a este sitio verás el estado del pago. La directiva lo
@@ -116,6 +134,14 @@ const handleSubmit = async (): Promise<void> => {
             </div>
 
             <dl class="mt-2 space-y-3 text-sm">
+              <div>
+                <dt class="text-base-content/60">Cuota anual sugerida</dt>
+                <dd class="font-medium">{{ montoCuotaSugerido }}</dd>
+              </div>
+              <div>
+                <dt class="text-base-content/60">Donación sugerida</dt>
+                <dd class="font-medium">{{ montoDonacionSugerido }}</dd>
+              </div>
               <div>
                 <dt class="text-base-content/60">Monto mínimo</dt>
                 <dd class="font-medium">{{ montoMinimo }}</dd>
@@ -135,11 +161,68 @@ const handleSubmit = async (): Promise<void> => {
           <div class="card-body">
             <h2 class="card-title text-xl">Datos del pago</h2>
             <p class="text-sm text-base-content/70">
-              Los campos marcados con asterisco son obligatorios. Usa el mismo
-              correo con el que te comunicas con la directiva.
+              Los campos marcados con asterisco son obligatorios. Usa un correo
+              real: la pasarela envía el comprobante a ese correo.
             </p>
 
             <form class="mt-6 space-y-5" novalidate @submit.prevent="handleSubmit">
+              <fieldset class="form-control">
+                <legend class="label-text font-medium mb-2">
+                  ¿Qué quieres pagar? *
+                </legend>
+                <div class="grid gap-3 sm:grid-cols-2">
+                  <label
+                    class="flex cursor-pointer items-start gap-3 rounded-box border-2 p-4 transition"
+                    :class="
+                      form.tipoAporte === 'CUOTA_ANUAL'
+                        ? 'border-primary bg-primary/5'
+                        : 'border-base-300 hover:border-primary/50'
+                    "
+                  >
+                    <input
+                      id="pago-tipo-cuota"
+                      v-model="form.tipoAporte"
+                      type="radio"
+                      value="CUOTA_ANUAL"
+                      class="radio radio-primary mt-0.5"
+                    />
+                    <span>
+                      <span class="block font-semibold">
+                        Cuota anual {{ CUOTA_ANUAL_PERIODO }}
+                      </span>
+                      <span class="block text-xs text-base-content/70">
+                        Aporte de las familias del liceo.
+                      </span>
+                    </span>
+                  </label>
+
+                  <label
+                    class="flex cursor-pointer items-start gap-3 rounded-box border-2 p-4 transition"
+                    :class="
+                      form.tipoAporte === 'DONACION'
+                        ? 'border-secondary bg-secondary/5'
+                        : 'border-base-300 hover:border-secondary/50'
+                    "
+                  >
+                    <input
+                      id="pago-tipo-donacion"
+                      v-model="form.tipoAporte"
+                      type="radio"
+                      value="DONACION"
+                      class="radio radio-secondary mt-0.5"
+                    />
+                    <span>
+                      <span class="block font-semibold">
+                        Donación voluntaria
+                      </span>
+                      <span class="block text-xs text-base-content/70">
+                        Cualquier persona puede aportar.
+                      </span>
+                    </span>
+                  </label>
+                </div>
+              </fieldset>
+
               <div class="grid gap-5 md:grid-cols-2">
                 <div class="form-control">
                   <label class="label" for="pago-nombre">
@@ -178,23 +261,6 @@ const handleSubmit = async (): Promise<void> => {
                 </div>
 
                 <div class="form-control">
-                  <label class="label" for="pago-concepto">
-                    <span class="label-text">Motivo del pago *</span>
-                  </label>
-                  <input
-                    id="pago-concepto"
-                    v-model="form.concepto"
-                    type="text"
-                    class="input input-bordered w-full"
-                    :class="{ 'input-error': errors.concepto }"
-                    maxlength="200"
-                  />
-                  <p v-if="errors.concepto" class="text-error text-xs mt-1">
-                    {{ errors.concepto }}
-                  </p>
-                </div>
-
-                <div class="form-control">
                   <label class="label" for="pago-monto">
                     <span class="label-text">Monto en pesos (CLP) *</span>
                   </label>
@@ -210,6 +276,40 @@ const handleSubmit = async (): Promise<void> => {
                   />
                   <p v-if="errors.monto" class="text-error text-xs mt-1">
                     {{ errors.monto }}
+                  </p>
+                  <p
+                    v-else-if="form.tipoAporte === 'CUOTA_ANUAL'"
+                    class="text-xs text-base-content/60 mt-1"
+                  >
+                    Sugerido: {{ montoCuotaSugerido }}. Puedes ajustarlo si
+                    pagas por más de un estudiante.
+                  </p>
+                  <p v-else class="text-xs text-base-content/60 mt-1">
+                    Monto libre desde {{ montoMinimo }}.
+                  </p>
+                </div>
+
+                <div v-if="form.tipoAporte === 'CUOTA_ANUAL'" class="form-control">
+                  <label class="label" for="pago-estudiante">
+                    <span class="label-text">
+                      Estudiante o curso (opcional)
+                    </span>
+                  </label>
+                  <input
+                    id="pago-estudiante"
+                    v-model="form.estudiante"
+                    type="text"
+                    class="input input-bordered w-full"
+                    :class="{ 'input-error': errors.estudiante }"
+                    maxlength="120"
+                    placeholder="Ej: 3° Básico A — Martina Pérez"
+                    autocomplete="off"
+                  />
+                  <p v-if="errors.estudiante" class="text-error text-xs mt-1">
+                    {{ errors.estudiante }}
+                  </p>
+                  <p v-else class="text-xs text-base-content/60 mt-1">
+                    Ayuda a la directiva a conciliar la cuota.
                   </p>
                 </div>
               </div>

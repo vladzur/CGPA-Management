@@ -5,47 +5,71 @@
  * componente y para que el payload enviado al backend sea siempre el mismo.
  * No depende de la pasarela concreta.
  */
-import { PAGO_MONTO_MAXIMO, PAGO_MONTO_MINIMO } from '@cgpa/shared';
+import {
+  CUOTA_ANUAL_MONTO_SUGERIDO,
+  CUOTA_ANUAL_PERIODO,
+  DONACION_MONTO_SUGERIDO,
+  PAGO_MONTO_MAXIMO,
+  PAGO_MONTO_MINIMO,
+  type TipoAporte,
+} from '@cgpa/shared';
 
 export interface PagoForm {
   nombre: string;
   email: string;
-  concepto: string;
+  tipoAporte: TipoAporte;
   monto: string;
+  estudiante: string;
 }
 
 export type PagoFormErrors = Partial<Record<keyof PagoForm, string>>;
 
 /** Payload que espera `POST /pagos/:proveedor`. */
 export interface PagoPayload {
-  concepto: string;
+  tipo_aporte: TipoAporte;
   monto: number;
   pagador_email: string;
   pagador_nombre: string;
+  estudiante?: string;
 }
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-/** Concepto y monto de la cuota vigente que se ofrecen por defecto. */
-export const PAGO_CONCEPTO_PREDETERMINADO = 'Cuota anual 2027';
-export const PAGO_MONTO_PREDETERMINADO = '10000';
+/** Tipo de aporte que se ofrece preseleccionado. */
+export const PAGO_TIPO_APORTE_PREDETERMINADO: TipoAporte = 'CUOTA_ANUAL';
+
+/** Concepto de la cuota vigente, usado por los textos de la página. */
+export const PAGO_CONCEPTO_PREDETERMINADO = `Cuota anual ${CUOTA_ANUAL_PERIODO}`;
+
+/** Montos sugeridos que el pagador puede modificar. */
+export const PAGO_MONTO_PREDETERMINADO = String(CUOTA_ANUAL_MONTO_SUGERIDO);
+export const PAGO_MONTO_DONACION_PREDETERMINADO = String(
+  DONACION_MONTO_SUGERIDO,
+);
 
 export function createEmptyPagoForm(): PagoForm {
   return {
     nombre: '',
     email: '',
-    concepto: '',
+    tipoAporte: PAGO_TIPO_APORTE_PREDETERMINADO,
     monto: '',
+    estudiante: '',
   };
 }
 
-/** Formulario con los valores sugeridos que el apoderado puede modificar. */
+/** Formulario con los valores sugeridos que el pagador puede modificar. */
 export function createDefaultPagoForm(): PagoForm {
   return {
     ...createEmptyPagoForm(),
-    concepto: PAGO_CONCEPTO_PREDETERMINADO,
     monto: PAGO_MONTO_PREDETERMINADO,
   };
+}
+
+/** Monto sugerido según el tipo de aporte elegido. */
+export function montoSugeridoPara(tipo: TipoAporte): string {
+  return tipo === 'CUOTA_ANUAL'
+    ? PAGO_MONTO_PREDETERMINADO
+    : PAGO_MONTO_DONACION_PREDETERMINADO;
 }
 
 export function validatePagoForm(form: PagoForm): PagoFormErrors {
@@ -59,8 +83,11 @@ export function validatePagoForm(form: PagoForm): PagoFormErrors {
     errors.email = 'Ingresa un correo electrónico válido.';
   }
 
-  if (form.concepto.trim().length < 3) {
-    errors.concepto = 'Indica el motivo del pago.';
+  if (
+    form.tipoAporte === 'CUOTA_ANUAL' &&
+    form.estudiante.trim().length > 120
+  ) {
+    errors.estudiante = 'El estudiante o curso es demasiado largo.';
   }
 
   const montoNormalizado = form.monto.trim();
@@ -81,12 +108,18 @@ export function validatePagoForm(form: PagoForm): PagoFormErrors {
 }
 
 export function buildPagoPayload(form: PagoForm): PagoPayload {
-  return {
-    concepto: form.concepto.trim(),
+  const payload: PagoPayload = {
+    tipo_aporte: form.tipoAporte,
     monto: Number(form.monto.trim()),
     pagador_email: form.email.trim(),
     pagador_nombre: form.nombre.trim(),
   };
+
+  if (form.tipoAporte === 'CUOTA_ANUAL' && form.estudiante.trim()) {
+    payload.estudiante = form.estudiante.trim();
+  }
+
+  return payload;
 }
 
 /** Redirige al portal de pago. Aislado para poder simularlo en los tests. */

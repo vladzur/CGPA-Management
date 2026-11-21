@@ -7,7 +7,12 @@
  */
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { RouterLink, useRoute } from 'vue-router';
-import { ESTADO_PAGO_LABELS, type EstadoPago } from '@cgpa/shared';
+import {
+  ESTADO_PAGO_LABELS,
+  TIPO_APORTE_LABELS,
+  type EstadoPago,
+  type TipoAporte,
+} from '@cgpa/shared';
 import apiClient from '../plugins/axios';
 import { formatCurrency, formatDateTime } from '../utils/format';
 
@@ -23,6 +28,7 @@ interface PagoPublico {
   asunto: string;
   moneda: string;
   monto: number;
+  tipo_aporte?: TipoAporte;
   estado: EstadoPago;
   estado_detalle?: string | null;
   banco?: string | null;
@@ -117,6 +123,12 @@ const estadoLabel = computed(() =>
   pago.value ? ESTADO_PAGO_LABELS[pago.value.estado] : '',
 );
 
+const tipoAporteLabel = computed(() =>
+  pago.value?.tipo_aporte
+    ? TIPO_APORTE_LABELS[pago.value.tipo_aporte]
+    : '',
+);
+
 const badgeClass = computed(() => {
   switch (pago.value?.estado) {
     case 'PAGADO':
@@ -180,6 +192,10 @@ onUnmounted(detener);
             <div>
               <dt class="text-base-content/60">Motivo</dt>
               <dd class="font-medium">{{ pago.asunto }}</dd>
+            </div>
+            <div v-if="tipoAporteLabel">
+              <dt class="text-base-content/60">Tipo de aporte</dt>
+              <dd class="font-medium">{{ tipoAporteLabel }}</dd>
             </div>
             <div>
               <dt class="text-base-content/60">Referencia</dt>

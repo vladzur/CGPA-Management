@@ -28,6 +28,7 @@ function makePago(overrides: Record<string, unknown> = {}) {
     asunto: 'CGPA - Cuota anual 2026',
     moneda: 'CLP',
     monto: 25000,
+    tipo_aporte: 'CUOTA_ANUAL',
     estado: 'PENDIENTE',
     creado_en: new Date(),
     actualizado_en: new Date(),
@@ -80,6 +81,17 @@ describe('PagoConfirmacion', () => {
     expect(wrapper.text()).toContain('$25.000');
     expect(wrapper.text()).toContain('Banco Estado');
     expect(wrapper.text()).toContain('CGPA-PAY-2026-ABC123');
+  });
+
+  it('should show the type of contribution', async () => {
+    mockGet.mockResolvedValue({
+      data: makePago({ estado: 'PAGADO', tipo_aporte: 'DONACION' }),
+    });
+
+    const wrapper = mount(PagoConfirmacion);
+    await flushPromises();
+
+    expect(wrapper.text()).toContain('Donación voluntaria');
   });
 
   it('should keep polling while the payment is pending', async () => {

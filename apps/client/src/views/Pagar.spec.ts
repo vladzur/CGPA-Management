@@ -19,10 +19,17 @@ vi.mock('../utils/pago-form', async (importOriginal) => {
 
 import Pagar from './Pagar.vue';
 
-async function fillValidForm(wrapper: ReturnType<typeof mount>) {
+async function fillValidForm(
+  wrapper: ReturnType<typeof mount>,
+  options: { monto?: string; estudiante?: string } = {},
+) {
   await wrapper.find('#pago-nombre').setValue('Juan Pérez');
   await wrapper.find('#pago-email').setValue('apoderado@ejemplo.cl');
-  await wrapper.find('#pago-monto').setValue('25000');
+  await wrapper.find('#pago-monto').setValue(options.monto ?? '25000');
+
+  if (options.estudiante !== undefined) {
+    await wrapper.find('#pago-estudiante').setValue(options.estudiante);
+  }
 }
 
 describe('Pagar', () => {
@@ -33,21 +40,34 @@ describe('Pagar', () => {
     });
   });
 
-  it('should render the Khipu payment button', () => {
+  it('should render the Khipu payment button and both payment intents', () => {
     const text = mount(Pagar).text();
 
+    expect(text).toContain('Pagar cuota o donar');
+    expect(text).toContain('Cuota anual 2027');
+    expect(text).toContain('Donación voluntaria');
     expect(text).toContain('Pagar con Khipu');
     expect(text).toContain('Monto mínimo');
   });
 
-  it('should prefill the concept and the amount of the current fee', () => {
+  it('should prefill the annual fee type, amount and show the student field', () => {
     const wrapper = mount(Pagar);
-    const concepto = wrapper.find('#pago-concepto')
+    const cuota = wrapper.find('#pago-tipo-cuota')
       .element as HTMLInputElement;
     const monto = wrapper.find('#pago-monto').element as HTMLInputElement;
 
-    expect(concepto.value).toBe('Cuota anual 2027');
+    expect(cuota.checked).toBe(true);
     expect(monto.value).toBe('10000');
+    expect(wrapper.find('#pago-estudiante').exists()).toBe(true);
+  });
+
+  it('should hide the student field when the payer selects a donation', async () => {
+    const wrapper = mount(Pagar);
+
+    await wrapper.find('#pago-tipo-donacion').setValue();
+
+    expect(wrapper.find('#pago-estudiante').exists()).toBe(false);
+    expect(wrapper.text()).toContain('Monto libre desde');
   });
 
   it('should not call the API when the form is invalid', async () => {
@@ -60,22 +80,39 @@ describe('Pagar', () => {
     expect(wrapper.text()).toContain('Indica tu nombre completo.');
   });
 
-  it('should create the payment and redirect to the Khipu portal', async () => {
+  it('should create the annual fee and redirect to the Khipu portal', async () => {
     const wrapper = mount(Pagar);
 
-    await fillValidForm(wrapper);
+    await fillValidForm(wrapper, { estudiante: '3° Básico A' });
     await wrapper.find('form').trigger('submit');
     await flushPromises();
 
     expect(mockPost).toHaveBeenCalledWith('/pagos/khipu', {
-      concepto: 'Cuota anual 2027',
+      tipo_aporte: 'CUOTA_ANUAL',
       monto: 25000,
       pagador_email: 'apoderado@ejemplo.cl',
       pagador_nombre: 'Juan Pérez',
+      estudiante: '3° Básico A',
     });
     expect(mockRedirect).toHaveBeenCalledWith(
       'https://khipu.com/payment/info/abc123',
     );
+  });
+
+  it('should create a donation without the student field', async () => {
+    const wrapper = mount(Pagar);
+
+    await wrapper.find('#pago-tipo-donacion').setValue();
+    await fillValidForm(wrapper, { monto: '5000' });
+    await wrapper.find('form').trigger('submit');
+    await flushPromises();
+
+    expect(mockPost).toHaveBeenCalledWith('/pagos/khipu', {
+      tipo_aporte: 'DONACION',
+      monto: 5000,
+      pagador_email: 'apoderado@ejemplo.cl',
+      pagador_nombre: 'Juan Pérez',
+    });
   });
 
   it('should show an error when the API rejects the request', async () => {
