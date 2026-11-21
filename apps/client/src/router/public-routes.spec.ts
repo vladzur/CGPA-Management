@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
+  PAGOS_HABILITADOS,
+  PUBLIC_NAV_ROUTES,
   PUBLIC_ROUTES,
   publicRouteOutputFile,
 } from '../content/public-routes';
@@ -74,6 +76,22 @@ describe('public route catalogue', () => {
   it('should always declare the institutional home as the first route', () => {
     expect(PUBLIC_ROUTES[0].path).toBe('/');
     expect(PUBLIC_ROUTES[0].name).toBe('Home');
+  });
+
+  it('should expose only published routes in the navigation', () => {
+    expect(PUBLIC_NAV_ROUTES).toEqual(
+      PUBLIC_ROUTES.filter((route) => !route.oculta),
+    );
+  });
+
+  it('should keep the payment page in the catalogue while it is hidden', () => {
+    const pagar = PUBLIC_ROUTES.find((route) => route.path === '/pagar');
+
+    expect(pagar).toBeDefined();
+    expect(pagar!.oculta).toBe(!PAGOS_HABILITADOS);
+
+    const navPaths: string[] = PUBLIC_NAV_ROUTES.map((route) => route.path);
+    expect(navPaths.includes('/pagar')).toBe(PAGOS_HABILITADOS);
   });
 
   it('should exclude internal and verification routes from the catalogue', () => {
