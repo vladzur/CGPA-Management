@@ -40,10 +40,11 @@ const MOCK_APODERADO_USER = {
 };
 
 const VALID_BODY = {
-  concepto: 'Cuota anual 2027',
+  tipo_aporte: 'CUOTA_ANUAL',
   monto: 10000,
   pagador_email: 'apoderado@ejemplo.cl',
   pagador_nombre: 'Juan Pérez',
+  estudiante: '3° Básico A — Martina Pérez',
 };
 
 const MOCK_PAGO = {
@@ -52,6 +53,7 @@ const MOCK_PAGO = {
   asunto: 'CGPA - Cuota anual 2027',
   moneda: 'CLP',
   monto: 10000,
+  tipo_aporte: 'CUOTA_ANUAL',
   estado: 'PENDIENTE',
   creado_en: new Date(),
   actualizado_en: new Date(),
@@ -118,11 +120,44 @@ describe('PagosController (e2e)', () => {
         referencia_externa: 'abc123xyz456',
       });
       expect(mockPagosService.crearPago).toHaveBeenCalledWith('khipu', {
-        concepto: 'Cuota anual 2027',
+        tipo_aporte: 'CUOTA_ANUAL',
         monto: 10000,
         pagador_email: 'apoderado@ejemplo.cl',
         pagador_nombre: 'Juan Pérez',
+        estudiante: '3° Básico A — Martina Pérez',
       });
+    });
+
+    it('should create a donation without the student field', async () => {
+      await request(app.getHttpServer())
+        .post('/pagos/khipu')
+        .send({
+          tipo_aporte: 'DONACION',
+          monto: 5000,
+          pagador_email: 'donante@ejemplo.cl',
+          pagador_nombre: 'María Donante',
+        })
+        .expect(201);
+
+      expect(mockPagosService.crearPago).toHaveBeenCalledWith('khipu', {
+        tipo_aporte: 'DONACION',
+        monto: 5000,
+        pagador_email: 'donante@ejemplo.cl',
+        pagador_nombre: 'María Donante',
+      });
+    });
+
+    it('should reject a student on a donation', async () => {
+      await request(app.getHttpServer())
+        .post('/pagos/khipu')
+        .send({
+          ...VALID_BODY,
+          tipo_aporte: 'DONACION',
+          estudiante: '3° Básico A',
+        })
+        .expect(400);
+
+      expect(mockPagosService.crearPago).not.toHaveBeenCalled();
     });
 
     it('should reject an invalid payer email', async () => {
@@ -155,10 +190,20 @@ describe('PagosController (e2e)', () => {
         .expect(400);
     });
 
-    it('should reject a missing concept', async () => {
+    it('should reject an unknown payment type', async () => {
       await request(app.getHttpServer())
         .post('/pagos/khipu')
-        .send({ ...VALID_BODY, concepto: '  ' })
+        .send({ ...VALID_BODY, tipo_aporte: 'OTRO' })
+        .expect(400);
+    });
+
+    it('should reject a missing payment type', async () => {
+      const sinTipo: Record<string, unknown> = { ...VALID_BODY };
+      delete sinTipo.tipo_aporte;
+
+      await request(app.getHttpServer())
+        .post('/pagos/khipu')
+        .send(sinTipo)
         .expect(400);
     });
   });

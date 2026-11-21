@@ -23,6 +23,14 @@ export const EstadoPagoSchema = z.enum([
 ]);
 
 /**
+ * Tipos de aporte que ofrece el sitio público.
+ *
+ * La cuota anual y la donación voluntaria comparten el mismo flujo de cobro;
+ * el tipo solo cambia el asunto y los campos que se guardan para conciliar.
+ */
+export const TipoAporteSchema = z.enum(['CUOTA_ANUAL', 'DONACION']);
+
+/**
  * Registro persistido en la colección `pagos`.
  *
  * `transaction_id` es el identificador interno del CGPA y se usa también como
@@ -40,6 +48,12 @@ export const PagoSchema = z.object({
   monto: z.number().int().positive(),
   pagador_email: z.string(),
   pagador_nombre: z.string(),
+  /** Tipo de aporte elegido por el pagador. */
+  tipo_aporte: TipoAporteSchema.optional(),
+  /** Período de la cuota anual (por ejemplo 2027). */
+  periodo: z.number().int().positive().optional(),
+  /** Estudiante o curso informado por el apoderado en la cuota anual. */
+  estudiante: z.string().optional(),
   estado: EstadoPagoSchema,
   estado_detalle: z.string().optional(),
   banco: z.string().optional(),
@@ -52,6 +66,7 @@ export const PagoSchema = z.object({
 
 export type ProveedorPago = z.infer<typeof ProveedorPagoSchema>;
 export type EstadoPago = z.infer<typeof EstadoPagoSchema>;
+export type TipoAporte = z.infer<typeof TipoAporteSchema>;
 export type Pago = z.infer<typeof PagoSchema>;
 
 /** Etiquetas en español de cada estado, usadas por la página de resultado. */
@@ -70,6 +85,24 @@ export const PROVEEDOR_PAGO_LABELS: Record<ProveedorPago, string> = {
 /** Pasarela que ofrece el formulario público mientras exista una sola. */
 export const PROVEEDOR_PAGO_PREDETERMINADO: ProveedorPago = 'khipu';
 
+/** Etiquetas en español de cada tipo de aporte. */
+export const TIPO_APORTE_LABELS: Record<TipoAporte, string> = {
+  CUOTA_ANUAL: 'Cuota anual',
+  DONACION: 'Donación voluntaria',
+};
+
 /** Montos admitidos por el botón de pago, en pesos chilenos enteros. */
 export const PAGO_MONTO_MINIMO = 100;
 export const PAGO_MONTO_MAXIMO = 10_000_000;
+
+/**
+ * Período y monto sugerido de la cuota anual vigente.
+ *
+ * El monto es solo una sugerencia: el apoderado puede ajustarlo (por ejemplo,
+ * para pagar la cuota de más de un estudiante). Actualizar cada año.
+ */
+export const CUOTA_ANUAL_PERIODO = 2027;
+export const CUOTA_ANUAL_MONTO_SUGERIDO = 10_000;
+
+/** Monto sugerido para una donación voluntaria. */
+export const DONACION_MONTO_SUGERIDO = 10_000;

@@ -21,7 +21,7 @@ import * as admin from 'firebase-admin';
 const TRANSACTION_ID = 'CGPA-PAY-2026-ABC123';
 
 const DTO = {
-  concepto: 'Cuota anual 2027',
+  tipo_aporte: 'CUOTA_ANUAL' as const,
   monto: 10000,
   pagador_email: 'apoderado@ejemplo.cl',
   pagador_nombre: 'Juan Pérez',
@@ -37,6 +37,8 @@ function makePago(overrides: Record<string, any> = {}) {
     monto: 10000,
     pagador_email: 'apoderado@ejemplo.cl',
     pagador_nombre: 'Juan Pérez',
+    tipo_aporte: 'CUOTA_ANUAL',
+    periodo: 2027,
     estado: 'PENDIENTE',
     url_pago: 'https://khipu.com/payment/info/abc123xyz456',
     creado_en: new Date(),
@@ -201,6 +203,56 @@ describe('PagosService', () => {
           moneda: 'CLP',
           monto: 10000,
           pagador_email: 'apoderado@ejemplo.cl',
+          tipo_aporte: 'CUOTA_ANUAL',
+          periodo: 2027,
+        }),
+      );
+    });
+
+    it('should derive the donation subject and skip the annual fee fields', async () => {
+      const { docRef } = setupDocRef();
+      docRef.set.mockResolvedValue(undefined as any);
+      pasarela.crearCobro.mockResolvedValue({
+        referenciaExterna: 'donacion-1',
+        urlPago: 'https://khipu.test/pay/donacion-1',
+      });
+
+      await service.crearPago('khipu', {
+        ...DTO,
+        tipo_aporte: 'DONACION',
+      });
+
+      expect(pasarela.crearCobro.mock.calls[0][0].asunto).toBe(
+        'CGPA - Donación voluntaria',
+      );
+
+      const persistido = docRef.set.mock.calls[0][0];
+      expect(persistido).toMatchObject({
+        tipo_aporte: 'DONACION',
+        monto: 10000,
+      });
+      expect(persistido).not.toHaveProperty('periodo');
+      expect(persistido).not.toHaveProperty('estudiante');
+    });
+
+    it('should persist the optional student only for the annual fee', async () => {
+      const { docRef } = setupDocRef();
+      docRef.set.mockResolvedValue(undefined as any);
+      pasarela.crearCobro.mockResolvedValue({
+        referenciaExterna: 'cuota-1',
+        urlPago: 'https://khipu.test/pay/cuota-1',
+      });
+
+      await service.crearPago('khipu', {
+        ...DTO,
+        estudiante: '3° Básico A — Martina Pérez',
+      });
+
+      expect(docRef.set).toHaveBeenCalledWith(
+        expect.objectContaining({
+          tipo_aporte: 'CUOTA_ANUAL',
+          periodo: 2027,
+          estudiante: '3° Básico A — Martina Pérez',
         }),
       );
     });
@@ -599,19 +651,17 @@ describe('PagosService', () => {
       expect(pago).toMatchObject({
         transaction_id: TRANSACTION_ID,
         proveedor: 'khipu',
+        tipo_aporte: 'CUOTA_ANUAL',
         estado: 'PENDIENTE',
         monto: 10000,
       });
     });
 
-    it('should reconcile a pending payment that already has a token', async () => {
+    it('should reconcile a pending payment with the stored external reference', async () => {
       const { docRef } = setupDocRef();
       docRef.get
         .mockResolvedValueOnce(
-          createMockDocSnapshot(
-            TRANSACTION_ID,
-            makePago({ token_notificacion: 'token-seguro' }),
-          ),
+          createMockDocSnapshot(TRANSACTION_ID, makePago()),
         )
         .mockResolvedValueOnce(
           createMockDocSnapshot(
@@ -627,13 +677,38 @@ describe('PagosService', () => {
 
       const pago = await service.consultarPago(TRANSACTION_ID);
 
-      expect(pasarela.verificarPago).toHaveBeenCalledWith('token-seguro');
+      expect(pasarela.verificarPago).toHaveBeenCalledWith('abc123xyz456');
       expect(actualizar).toHaveBeenCalledWith(
         'khipu',
         expect.objectContaining({ estado: 'PAGADO' }),
-        'token-seguro',
+        'abc123xyz456',
       );
       expect(pago.estado).toBe('PAGADO');
+    });
+
+    it('should fall back to the notification token for legacy payments', async () => {
+      const { docRef } = setupDocRef();
+      docRef.get
+        .mockResolvedValueOnce(
+          createMockDocSnapshot(
+            TRANSACTION_ID,
+            makePago({
+              referencia_externa: undefined,
+              token_notificacion: 'token-seguro',
+            }),
+          ),
+        )
+        .mockResolvedValueOnce(
+          createMockDocSnapshot(
+            TRANSACTION_ID,
+            makePago({ estado: 'PAGADO', pagado_en: new Date() }),
+          ),
+        );
+      pasarela.verificarPago.mockResolvedValue(makeVerificado());
+
+      await service.consultarPago(TRANSACTION_ID);
+
+      expect(pasarela.verificarPago).toHaveBeenCalledWith('token-seguro');
     });
 
     it('should keep the local state when the gateway cannot be reached', async () => {
@@ -673,10 +748,13 @@ describe('PagosService', () => {
       expect(pago.estado).toBe('PENDIENTE');
     });
 
-    it('should not reconcile when there is no notification token', async () => {
+    it('should not reconcile when there is no verifiable reference', async () => {
       const { docRef } = setupDocRef();
       docRef.get.mockResolvedValue(
-        createMockDocSnapshot(TRANSACTION_ID, makePago()),
+        createMockDocSnapshot(
+          TRANSACTION_ID,
+          makePago({ referencia_externa: undefined }),
+        ),
       );
 
       await service.consultarPago(TRANSACTION_ID);

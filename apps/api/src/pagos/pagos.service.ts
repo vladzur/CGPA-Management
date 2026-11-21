@@ -1,7 +1,12 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import * as admin from 'firebase-admin';
-import { type EstadoPago, type Pago, type ProveedorPago } from '@cgpa/shared';
+import {
+  CUOTA_ANUAL_PERIODO,
+  type EstadoPago,
+  type Pago,
+  type ProveedorPago,
+} from '@cgpa/shared';
 import { CreatePagoDto } from './dto/create-pago.dto';
 import { PasarelasService } from './pasarelas/pasarelas.service';
 import type { PagoVerificado } from './pasarelas/pasarela-pago.interface';
@@ -39,6 +44,7 @@ export type PagoPublico = Pick<
   | 'asunto'
   | 'moneda'
   | 'monto'
+  | 'tipo_aporte'
   | 'estado'
   | 'estado_detalle'
   | 'banco'
@@ -105,7 +111,13 @@ export class PagosService {
   ): Promise<CobroIniciado> {
     const pasarela = this.pasarelas.obtener(proveedorId);
     const transactionId = this.generarTransactionId();
-    const asunto = `CGPA - ${dto.concepto}`;
+    const esCuotaAnual = dto.tipo_aporte === 'CUOTA_ANUAL';
+    // El asunto lo decide el servidor: el pagador no puede cambiarlo ni
+    // disfrazar una donación como cuota (o viceversa).
+    const concepto = esCuotaAnual
+      ? `Cuota anual ${CUOTA_ANUAL_PERIODO}`
+      : 'Donación voluntaria';
+    const asunto = `CGPA - ${concepto}`;
     const clientBaseUrl = this.obtenerClientBaseUrl();
 
     const cobro = await pasarela.crearCobro({
@@ -136,6 +148,9 @@ export class PagosService {
       monto: dto.monto,
       pagador_email: dto.pagador_email,
       pagador_nombre: dto.pagador_nombre,
+      tipo_aporte: dto.tipo_aporte,
+      ...(esCuotaAnual ? { periodo: CUOTA_ANUAL_PERIODO } : {}),
+      ...(esCuotaAnual && dto.estudiante ? { estudiante: dto.estudiante } : {}),
       estado: 'PENDIENTE',
       url_pago: cobro.urlPago,
       creado_en: ahora,
@@ -175,6 +190,7 @@ export class PagosService {
       return { actualizado: false, estado: null, transactionId: null };
     }
 
+    this.logger.log(`Notificación ${pasarela.id} recibida`);
     const verificado = await pasarela.verificarPago(referencia);
 
     if (!verificado) {
@@ -185,9 +201,9 @@ export class PagosService {
   }
 
   /**
-   * Devuelve el estado de un cobro. Si sigue pendiente y ya existe un token de
-   * notificación, reconcilia contra la pasarela para no depender de que el
-   * webhook haya llegado antes que el apoderado vuelva al sitio.
+   * Devuelve el estado de un cobro. Si sigue pendiente y la pasarela ya
+   * entregó una referencia verificable, reconcilia el estado para no depender
+   * de que el webhook haya llegado antes que el apoderado vuelva al sitio.
    */
   async consultarPago(transactionId: string): Promise<PagoPublico> {
     const pagoRef = this.db.collection(this.coleccionPagos).doc(transactionId);
@@ -198,19 +214,21 @@ export class PagosService {
     }
 
     let pago = snapshot.data() as Pago;
+    // La notificación 3.0 de Khipu entrega el `payment_id`, que se guarda como
+    // referencia externa al crear el cobro.
+    const referenciaVerificacion =
+      pago.referencia_externa ?? pago.token_notificacion;
 
-    if (pago.estado === 'PENDIENTE' && pago.token_notificacion) {
+    if (pago.estado === 'PENDIENTE' && referenciaVerificacion) {
       try {
         const pasarela = this.pasarelas.obtener(pago.proveedor);
-        const verificado = await pasarela.verificarPago(
-          pago.token_notificacion,
-        );
+        const verificado = await pasarela.verificarPago(referenciaVerificacion);
 
         if (verificado) {
           await this.aplicarVerificacion(
             pago.proveedor,
             verificado,
-            pago.token_notificacion,
+            referenciaVerificacion,
           );
           snapshot = await pagoRef.get();
           pago = snapshot.data() as Pago;
@@ -413,6 +431,7 @@ export class PagosService {
       asunto: pago.asunto,
       moneda: pago.moneda,
       monto: pago.monto,
+      tipo_aporte: pago.tipo_aporte,
       estado: pago.estado,
       estado_detalle: pago.estado_detalle,
       banco: pago.banco,
