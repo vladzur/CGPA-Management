@@ -34,10 +34,39 @@ function makePago(overrides: Record<string, unknown> = {}) {
   };
 }
 
+function makeError(overrides: Record<string, unknown> = {}) {
+  return {
+    id: 'error-1',
+    proveedor: 'khipu',
+    operacion: 'CREAR_COBRO',
+    origen: 'API',
+    transaction_id: 'CGPA-PAY-2026-ABC123',
+    http_status: 403,
+    codigo: 'HTTP_403',
+    mensaje: 'Khipu respondió HTTP 403 sin detalle (HTTP 403)',
+    creado_en: new Date('2026-11-21T20:00:00Z'),
+    ...overrides,
+  };
+}
+
+/** Simula las dos llamadas que hace la vista: cobros y errores. */
+function respondWith(
+  options: { pagos?: unknown[]; errores?: unknown[] } = {},
+): void {
+  const pagos = options.pagos ?? [makePago()];
+  const errores = options.errores ?? [makeError()];
+
+  mockGet.mockImplementation((url: string) => {
+    if (url === '/pagos/errores') return Promise.resolve({ data: errores });
+
+    return Promise.resolve({ data: pagos });
+  });
+}
+
 describe('AdminPagos', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockGet.mockResolvedValue({ data: [makePago()] });
+    respondWith();
   });
 
   it('should load the payments from the admin endpoint', async () => {
@@ -54,9 +83,29 @@ describe('AdminPagos', () => {
     expect(wrapper.text()).toContain('CGPA-PAY-2026-ABC123');
   });
 
+  it('should load the payment provider errors', async () => {
+    const wrapper = mount(AdminPagos);
+    await flushPromises();
+
+    expect(mockGet).toHaveBeenCalledWith('/pagos/errores');
+    expect(wrapper.text()).toContain('Errores de pasarelas');
+    expect(wrapper.text()).toContain('Crear cobro');
+    expect(wrapper.text()).toContain('HTTP 403');
+    expect(wrapper.text()).toContain('Khipu respondió HTTP 403');
+  });
+
+  it('should show an empty state when there are no provider errors', async () => {
+    respondWith({ errores: [] });
+
+    const wrapper = mount(AdminPagos);
+    await flushPromises();
+
+    expect(wrapper.text()).toContain('No hay errores registrados');
+  });
+
   it('should add up only the confirmed payments', async () => {
-    mockGet.mockResolvedValue({
-      data: [
+    respondWith({
+      pagos: [
         makePago({ id: 'a', monto: 10000 }),
         makePago({ id: 'b', monto: 5000 }),
         makePago({ id: 'c', monto: 7000, estado: 'PENDIENTE' }),
@@ -70,8 +119,8 @@ describe('AdminPagos', () => {
   });
 
   it('should filter by type and state', async () => {
-    mockGet.mockResolvedValue({
-      data: [
+    respondWith({
+      pagos: [
         makePago({ id: 'cuota', pagador_nombre: 'Apoderado Cuota' }),
         makePago({
           id: 'donacion',
@@ -100,7 +149,7 @@ describe('AdminPagos', () => {
   });
 
   it('should show an empty state when there are no payments', async () => {
-    mockGet.mockResolvedValue({ data: [] });
+    respondWith({ pagos: [] });
 
     const wrapper = mount(AdminPagos);
     await flushPromises();
@@ -129,6 +178,7 @@ describe('AdminPagos', () => {
     await refresh.trigger('click');
     await flushPromises();
 
-    expect(mockGet).toHaveBeenCalledTimes(2);
+    const pagosCalls = mockGet.mock.calls.filter(([url]) => url === '/pagos');
+    expect(pagosCalls).toHaveLength(2);
   });
 });
