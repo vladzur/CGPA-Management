@@ -54,6 +54,14 @@ público. Esto permite validar exactamente el mismo código que verá el apodera
 > `notify_api_version: "3.0"`, y Khipu usa esa configuración por cobro. La
 > página de confirmación además reconcilia por API si el webhook demora.
 
+> **Límite temporal de la cuenta.** Khipu puede limitar el monto de las
+> transacciones (por ejemplo, `$5.000`) hasta completar la verificación legal.
+> Si el límite es por transacción, prueba con un monto inferior; si es acumulado
+> y ya se agotó, hay que esperar la verificación. **No publiques el botón**
+> hasta que el límite se retire: el formulario sugiere `$10.000` para la cuota y
+> un apoderado recibiría el mismo error. Los errores reales quedan registrados
+> en `/admin/pagos` → *Errores de pasarelas*.
+
 ---
 
 ## 3. Despliegue con el botón oculto
@@ -122,7 +130,8 @@ en `southamerica-west1`.
 2. Dejar seleccionada **Cuota anual 2027**.
 3. Completar nombre y correo reales.
 4. Usar un monto bajo (por ejemplo `$100`), o el monto sugerido si se quiere
-   validar el importe real.
+   validar el importe real. Si la cuenta tiene un límite temporal, usa un monto
+   permitido y regístralo como pago parcial de la cuota.
 5. Opcional: indicar estudiante/curso.
 6. Pulsar **Pagar con Khipu** y pagar en el portal.
 
@@ -265,3 +274,29 @@ primeros aportes del CGPA (decisión de la directiva). No es necesario borrarlos
 La conciliación contable sigue siendo manual: un pago confirmado **no** crea
 automáticamente una transacción de ingreso. La directiva registra el ingreso en
 el formulario de transacciones existente, con su respaldo, cuando corresponda.
+
+---
+
+## 10. Diagnóstico de errores de pasarela
+
+Los errores reales de Khipu (status, código y mensaje) se guardan en
+`pagos_errores` y se ven en `/admin/pagos` → **Errores de pasarelas**. No se
+guarda el cuerpo crudo ni datos personales.
+
+Si `POST /api/pagos/khipu` responde `502`:
+
+1. Entrar como ADMIN a `/admin/pagos` y revisar la última fila de errores.
+2. Interpretar `http_status` y `codigo`:
+   - `403` sin detalle: API Key inválida, vencida o de otra cuenta. Crear una
+     nueva, actualizar el secret y redesplegar.
+   - `400`/`403` con mensaje de límite: cuenta con límite temporal; completar la
+     verificación legal de Khipu.
+   - `500`: error temporal de Khipu; reintentar.
+   - `NETWORK`: no hubo respuesta; revisar conectividad de Cloud Run y el estado
+     de Khipu.
+3. Corregir la causa y reintentar. Si el error se repite, adjuntar
+   `http_status`, `codigo` y `mensaje` al soporte de Khipu, sin compartir la API
+   Key.
+
+La colección está bloqueada para clientes; solo el backend (Admin SDK) escribe y
+solo un ADMIN activo la lee a través de `GET /api/pagos/errores`.

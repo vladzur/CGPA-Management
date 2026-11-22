@@ -180,6 +180,7 @@ Estas variables se inyectan en el deploy desde el pipeline `release-deploy.yml` 
 | `CLIENT_BASE_URL` | URL del frontend para `return_url`/`cancel_url` | Workflow (valor de producción) |
 | `PAGO_TTL_DIAS` | Vigencia de un cobro de pago (días) | Workflow (`7`) |
 | `PAGOS_COLECCION` | Colección de Firestore de pagos | Workflow (`pagos` en producción) |
+| `PAGOS_ERRORES_COLECCION` | Colección de errores reales de pasarelas | Por defecto `pagos_errores` |
 | `KHIPU_API_KEY` | API Key de Khipu v3 para crear/verificar cobros | GitHub Secret `KHIPU_API_KEY` |
 | `KHIPU_API_BASE_URL` | Base de la API v3 de Khipu | Workflow (`https://payment-api.khipu.com/v3`) |
 
@@ -209,6 +210,7 @@ Estas variables se inyectan en el deploy desde el pipeline `release-deploy.yml` 
 | `documentos` | Documentos oficiales | Pública | Solo backend |
 | `mensajes` | Mensajes recibidos desde el formulario de contacto del sitio | Solo ADMIN activo | Solo backend |
 | `pagos` | Cobros del botón de pago Khipu (cuota anual y donaciones) | Solo vía API (`/admin/pagos` para ADMIN) | Solo backend |
+| `pagos_errores` | Errores reales de creación/verificación de las pasarelas | Solo vía API (`/admin/pagos` para ADMIN) | Solo backend |
 
 ### Índices compuestos activos
 
