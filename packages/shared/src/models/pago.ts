@@ -30,6 +30,19 @@ export const EstadoPagoSchema = z.enum([
  */
 export const TipoAporteSchema = z.enum(['CUOTA_ANUAL', 'DONACION']);
 
+/** Operación de la pasarela que originó un error. */
+export const OperacionPasarelaSchema = z.enum([
+  'CREAR_COBRO',
+  'VERIFICAR_PAGO',
+]);
+
+/** Punto del flujo desde el que se detectó el error. */
+export const OrigenErrorPasarelaSchema = z.enum([
+  'API',
+  'WEBHOOK',
+  'CONSULTA_ESTADO',
+]);
+
 /**
  * Registro persistido en la colección `pagos`.
  *
@@ -64,10 +77,31 @@ export const PagoSchema = z.object({
   actualizado_en: TimestampSchema,
 });
 
+/**
+ * Error real de una pasarela de pago, guardado para diagnóstico interno.
+ *
+ * No se persiste el cuerpo crudo de la respuesta: solo el estado HTTP, el
+ * código y un mensaje saneado. Tampoco se guardan datos personales.
+ */
+export const PagoErrorSchema = z.object({
+  proveedor: ProveedorPagoSchema,
+  operacion: OperacionPasarelaSchema,
+  origen: OrigenErrorPasarelaSchema,
+  transaction_id: z.string().optional(),
+  referencia_externa: z.string().optional(),
+  http_status: z.number().int().nullable(),
+  codigo: z.string().nullable(),
+  mensaje: z.string(),
+  creado_en: TimestampSchema,
+});
+
 export type ProveedorPago = z.infer<typeof ProveedorPagoSchema>;
 export type EstadoPago = z.infer<typeof EstadoPagoSchema>;
 export type TipoAporte = z.infer<typeof TipoAporteSchema>;
+export type OperacionPasarela = z.infer<typeof OperacionPasarelaSchema>;
+export type OrigenErrorPasarela = z.infer<typeof OrigenErrorPasarelaSchema>;
 export type Pago = z.infer<typeof PagoSchema>;
+export type PagoError = z.infer<typeof PagoErrorSchema>;
 
 /** Etiquetas en español de cada estado, usadas por la página de resultado. */
 export const ESTADO_PAGO_LABELS: Record<EstadoPago, string> = {
@@ -89,6 +123,22 @@ export const PROVEEDOR_PAGO_PREDETERMINADO: ProveedorPago = 'khipu';
 export const TIPO_APORTE_LABELS: Record<TipoAporte, string> = {
   CUOTA_ANUAL: 'Cuota anual',
   DONACION: 'Donación voluntaria',
+};
+
+/** Etiquetas de las operaciones de pasarela registradas en los errores. */
+export const OPERACION_PASARELA_LABELS: Record<OperacionPasarela, string> = {
+  CREAR_COBRO: 'Crear cobro',
+  VERIFICAR_PAGO: 'Verificar pago',
+};
+
+/** Etiquetas del punto del flujo donde se detectó el error. */
+export const ORIGEN_ERROR_PASARELA_LABELS: Record<
+  OrigenErrorPasarela,
+  string
+> = {
+  API: 'API',
+  WEBHOOK: 'Webhook',
+  CONSULTA_ESTADO: 'Consulta de estado',
 };
 
 /** Montos admitidos por el botón de pago, en pesos chilenos enteros. */

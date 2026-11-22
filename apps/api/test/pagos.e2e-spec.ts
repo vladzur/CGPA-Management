@@ -59,6 +59,18 @@ const MOCK_PAGO = {
   actualizado_en: new Date(),
 };
 
+const MOCK_ERROR = {
+  id: 'error-1',
+  proveedor: 'khipu',
+  operacion: 'CREAR_COBRO',
+  origen: 'API',
+  transaction_id: 'CGPA-PAY-2026-ABC123',
+  http_status: 403,
+  codigo: 'HTTP_403',
+  mensaje: 'Khipu respondió HTTP 403',
+  creado_en: new Date(),
+};
+
 describe('PagosController (e2e)', () => {
   let app: INestApplication;
   let mockPagosService: jest.Mocked<Partial<PagosService>>;
@@ -84,6 +96,7 @@ describe('PagosController (e2e)', () => {
         .mockResolvedValue({ actualizado: true, estado: 'PAGADO' }),
       consultarPago: jest.fn().mockResolvedValue(MOCK_PAGO),
       listarPagos: jest.fn().mockResolvedValue([MOCK_PAGO]),
+      listarErroresPago: jest.fn().mockResolvedValue([MOCK_ERROR]),
     };
 
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -315,6 +328,38 @@ describe('PagosController (e2e)', () => {
 
       expect(body).toHaveLength(1);
       expect(mockPagosService.listarPagos).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  // ─── GET /pagos/errores ────────────────────────────────────────────────────
+
+  describe('GET /pagos/errores', () => {
+    it('should require an authentication token', async () => {
+      await request(app.getHttpServer()).get('/pagos/errores').expect(401);
+
+      expect(mockPagosService.listarErroresPago).not.toHaveBeenCalled();
+    });
+
+    it('should reject a user without the ADMIN role', async () => {
+      mockAuth.verifyIdToken.mockResolvedValue(MOCK_APODERADO_USER);
+
+      await request(app.getHttpServer())
+        .get('/pagos/errores')
+        .set('Authorization', 'Bearer token-apoderado')
+        .expect(403);
+
+      expect(mockPagosService.listarErroresPago).not.toHaveBeenCalled();
+    });
+
+    it('should list provider errors for an active admin', async () => {
+      const { body } = await request(app.getHttpServer())
+        .get('/pagos/errores')
+        .set('Authorization', 'Bearer token-admin')
+        .expect(200);
+
+      expect(body).toHaveLength(1);
+      expect(body[0]).toMatchObject({ codigo: 'HTTP_403' });
+      expect(mockPagosService.listarErroresPago).toHaveBeenCalledTimes(1);
     });
   });
 });

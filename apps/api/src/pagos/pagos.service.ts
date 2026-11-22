@@ -1,15 +1,29 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import {
+  BadGatewayException,
+  Injectable,
+  Logger,
+  NotFoundException,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import * as admin from 'firebase-admin';
 import {
   CUOTA_ANUAL_PERIODO,
   type EstadoPago,
+  type OperacionPasarela,
+  type OrigenErrorPasarela,
   type Pago,
+  type PagoError,
   type ProveedorPago,
 } from '@cgpa/shared';
 import { CreatePagoDto } from './dto/create-pago.dto';
 import { PasarelasService } from './pasarelas/pasarelas.service';
-import type { PagoVerificado } from './pasarelas/pasarela-pago.interface';
+import {
+  ErrorPasarela,
+  type CobroCreado,
+  type DetalleErrorPasarela,
+  type PagoVerificado,
+} from './pasarelas/pasarela-pago.interface';
 import { firestoreNow } from '../common/firestore-utils';
 
 /** Días de vigencia de un cobro, configurables por entorno. */
@@ -17,6 +31,9 @@ const PAGO_TTL_DIAS_DEFAULT = 7;
 
 /** Colección por defecto donde se persisten los cobros. */
 const COLECCION_PAGOS_DEFAULT = 'pagos';
+
+/** Colección por defecto donde se registran los errores de pasarelas. */
+const COLECCION_ERRORES_DEFAULT = 'pagos_errores';
 
 /**
  * Nombres válidos de colección. Evita configurar rutas con `/`, que Firestore
@@ -84,15 +101,27 @@ export class PagosService {
    * aparte (por ejemplo `pagos_sandbox`) sin contaminar el historial real.
    */
   private get coleccionPagos(): string {
-    const configurada = process.env.PAGOS_COLECCION?.trim();
+    return this.obtenerColeccion('PAGOS_COLECCION', COLECCION_PAGOS_DEFAULT);
+  }
 
-    if (!configurada) return COLECCION_PAGOS_DEFAULT;
+  /** Colección efectiva de errores de pasarelas. */
+  private get coleccionErrores(): string {
+    return this.obtenerColeccion(
+      'PAGOS_ERRORES_COLECCION',
+      COLECCION_ERRORES_DEFAULT,
+    );
+  }
+
+  private obtenerColeccion(variable: string, porDefecto: string): string {
+    const configurada = process.env[variable]?.trim();
+
+    if (!configurada) return porDefecto;
 
     if (!PATRON_COLECCION.test(configurada)) {
       this.logger.warn(
-        `PAGOS_COLECCION inválida (${configurada}); se usa ${COLECCION_PAGOS_DEFAULT}`,
+        `${variable} inválida (${configurada}); se usa ${porDefecto}`,
       );
-      return COLECCION_PAGOS_DEFAULT;
+      return porDefecto;
     }
 
     return configurada;
@@ -120,23 +149,35 @@ export class PagosService {
     const asunto = `CGPA - ${concepto}`;
     const clientBaseUrl = this.obtenerClientBaseUrl();
 
-    const cobro = await pasarela.crearCobro({
-      transactionId,
-      asunto,
-      monto: dto.monto,
-      pagadorEmail: dto.pagador_email,
-      pagadorNombre: dto.pagador_nombre,
-      urlRetorno: this.conParametro(
-        `${clientBaseUrl}/pagar/confirmacion`,
+    let cobro: CobroCreado;
+    try {
+      cobro = await pasarela.crearCobro({
         transactionId,
-      ),
-      urlCancelacion: this.conParametro(
-        `${clientBaseUrl}/pagar/cancelado`,
+        asunto,
+        monto: dto.monto,
+        pagadorEmail: dto.pagador_email,
+        pagadorNombre: dto.pagador_nombre,
+        urlRetorno: this.conParametro(
+          `${clientBaseUrl}/pagar/confirmacion`,
+          transactionId,
+        ),
+        urlCancelacion: this.conParametro(
+          `${clientBaseUrl}/pagar/cancelado`,
+          transactionId,
+        ),
+        urlNotificacion: this.obtenerUrlNotificacion(pasarela.id),
+        expiraEn: this.fechaExpiracion(),
+      });
+    } catch (error) {
+      await this.registrarErrorPasarela(
+        pasarela.id,
+        'CREAR_COBRO',
+        'API',
+        error,
         transactionId,
-      ),
-      urlNotificacion: this.obtenerUrlNotificacion(pasarela.id),
-      expiraEn: this.fechaExpiracion(),
-    });
+      );
+      throw this.traducirErrorPasarela(error);
+    }
 
     const ahora = firestoreNow();
     const pago: Pago = {
@@ -191,7 +232,21 @@ export class PagosService {
     }
 
     this.logger.log(`Notificación ${pasarela.id} recibida`);
-    const verificado = await pasarela.verificarPago(referencia);
+
+    let verificado: PagoVerificado | null;
+    try {
+      verificado = await pasarela.verificarPago(referencia);
+    } catch (error) {
+      await this.registrarErrorPasarela(
+        pasarela.id,
+        'VERIFICAR_PAGO',
+        'WEBHOOK',
+        error,
+        undefined,
+        referencia,
+      );
+      throw this.traducirErrorPasarela(error);
+    }
 
     if (!verificado) {
       return { actualizado: false, estado: null, transactionId: null };
@@ -234,6 +289,14 @@ export class PagosService {
           pago = snapshot.data() as Pago;
         }
       } catch (error) {
+        await this.registrarErrorPasarela(
+          pago.proveedor,
+          'VERIFICAR_PAGO',
+          'CONSULTA_ESTADO',
+          error,
+          transactionId,
+          referenciaVerificacion,
+        );
         this.logger.warn(
           `No se pudo reconciliar el pago ${transactionId}: ${(error as Error).message}`,
         );
@@ -256,6 +319,20 @@ export class PagosService {
       delete (data as Partial<Pago>).token_notificacion;
       return { id: doc.id, ...data };
     });
+  }
+
+  /** Lista los últimos errores de pasarelas para diagnóstico interno. */
+  async listarErroresPago(): Promise<Array<PagoError & { id: string }>> {
+    const snapshot = await this.db
+      .collection(this.coleccionErrores)
+      .orderBy('creado_en', 'desc')
+      .limit(100)
+      .get();
+
+    return snapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...(doc.data() as PagoError),
+    }));
   }
 
   // ─── Estado e idempotencia ─────────────────────────────────────────────────
@@ -370,6 +447,92 @@ export class PagosService {
     if (notificado === 'PENDIENTE') return actual === 'PENDIENTE';
 
     return actual !== notificado;
+  }
+
+  // ─── Registro de errores de pasarelas ─────────────────────────────────────
+
+  /**
+   * Guarda un error real de pasarela en la colección de diagnóstico.
+   *
+   * Un fallo al escribir el registro nunca oculta el error original: solo se
+   * informa por log.
+   */
+  private async registrarErrorPasarela(
+    proveedor: ProveedorPago,
+    operacion: OperacionPasarela,
+    origen: OrigenErrorPasarela,
+    error: unknown,
+    transactionId?: string,
+    referenciaExterna?: string,
+  ): Promise<void> {
+    // La falta de credenciales es un problema de configuración, no del
+    // proveedor; ya se responde con 503 y no se registra como error externo.
+    if (error instanceof ServiceUnavailableException) return;
+
+    const detalle = this.normalizarErrorPasarela(proveedor, operacion, error);
+
+    const registro: PagoError = {
+      proveedor: detalle.proveedor,
+      operacion: detalle.operacion,
+      origen,
+      ...(transactionId ? { transaction_id: transactionId } : {}),
+      ...(referenciaExterna ? { referencia_externa: referenciaExterna } : {}),
+      http_status: detalle.status,
+      codigo: detalle.codigo,
+      mensaje: this.recortar(detalle.mensaje, 500),
+      creado_en: firestoreNow(),
+    };
+
+    try {
+      await this.db.collection(this.coleccionErrores).add(registro);
+    } catch (writeError) {
+      this.logger.error(
+        `No se pudo guardar el error de ${proveedor} (${operacion}): ${(writeError as Error).message}`,
+      );
+    }
+  }
+
+  private normalizarErrorPasarela(
+    proveedor: ProveedorPago,
+    operacion: OperacionPasarela,
+    error: unknown,
+  ): DetalleErrorPasarela {
+    if (error instanceof ErrorPasarela) return error.detalle;
+
+    const mensaje =
+      error instanceof Error
+        ? error.message
+        : 'Error desconocido de la pasarela';
+
+    return {
+      proveedor,
+      operacion,
+      status: null,
+      codigo: 'DESCONOCIDO',
+      mensaje,
+    };
+  }
+
+  private traducirErrorPasarela(error: unknown): Error {
+    if (error instanceof ServiceUnavailableException) return error;
+
+    if (error instanceof ErrorPasarela) {
+      const status = error.detalle.status;
+
+      return new BadGatewayException(
+        status
+          ? `La pasarela de pagos rechazó la solicitud (HTTP ${status})`
+          : 'No se pudo comunicar con la pasarela de pagos',
+      );
+    }
+
+    return new BadGatewayException(
+      'No se pudo comunicar con la pasarela de pagos',
+    );
+  }
+
+  private recortar(texto: string, maximo: number): string {
+    return texto.replace(/\s+/g, ' ').trim().slice(0, maximo);
   }
 
   // ─── Helpers internos ──────────────────────────────────────────────────────

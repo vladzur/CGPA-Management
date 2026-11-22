@@ -50,6 +50,18 @@ export class PagosController {
     return { recibido: true, estado: resultado.estado };
   }
 
+  /**
+   * Errores reales de las pasarelas, para diagnóstico interno.
+   *
+   * Debe declararse antes de `GET /:transactionId` para que `errores` no se
+   * interprete como un identificador de cobro.
+   */
+  @Get('errores')
+  @UseGuards(FirebaseAuthGuard, AdminGuard)
+  listarErroresPago() {
+    return this.pagosService.listarErroresPago();
+  }
+
   /** Consulta pública del estado, usada por la página de confirmación. */
   @Get(':transactionId')
   consultarPago(@Param('transactionId') transactionId: string) {

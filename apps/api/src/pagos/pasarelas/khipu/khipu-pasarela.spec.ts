@@ -1,10 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import {
-  BadGatewayException,
-  ServiceUnavailableException,
-} from '@nestjs/common';
+import { ServiceUnavailableException } from '@nestjs/common';
 import { KhipuPasarela } from './khipu-pasarela';
-import type { SolicitudCobro } from '../pasarela-pago.interface';
+import { ErrorPasarela, type SolicitudCobro } from '../pasarela-pago.interface';
 
 const SOLICITUD: SolicitudCobro = {
   transactionId: 'CGPA-PAY-2026-ABC123',
@@ -38,6 +35,15 @@ function makeDetalle(overrides: Record<string, any> = {}) {
 
 function jsonResponse(body: unknown, ok = true, status = 200): any {
   return { ok, status, json: jest.fn().mockResolvedValue(body) };
+}
+
+function errorResponse(status: number, body = ''): any {
+  return {
+    ok: false,
+    status,
+    text: jest.fn().mockResolvedValue(body),
+    json: jest.fn(),
+  };
 }
 
 describe('KhipuPasarela', () => {
@@ -122,28 +128,64 @@ describe('KhipuPasarela', () => {
       expect(mockFetch).not.toHaveBeenCalled();
     });
 
-    it('should translate an error response into a bad gateway error', async () => {
-      mockFetch.mockResolvedValue(jsonResponse({}, false, 500));
+    it('should normalize an error response without body', async () => {
+      mockFetch.mockResolvedValue(errorResponse(403));
 
-      await expect(pasarela.crearCobro(SOLICITUD)).rejects.toThrow(
-        BadGatewayException,
+      await expect(pasarela.crearCobro(SOLICITUD)).rejects.toMatchObject({
+        detalle: {
+          proveedor: 'khipu',
+          operacion: 'CREAR_COBRO',
+          status: 403,
+          codigo: 'HTTP_403',
+          mensaje: expect.stringContaining('HTTP 403'),
+        },
+      });
+      await expect(pasarela.crearCobro(SOLICITUD)).rejects.toBeInstanceOf(
+        ErrorPasarela,
       );
     });
 
-    it('should translate a network failure into a bad gateway error', async () => {
+    it('should extract the provider code and message from a json error', async () => {
+      mockFetch.mockResolvedValue(
+        errorResponse(
+          400,
+          JSON.stringify({
+            error: 'bad_request',
+            message: 'El monto supera el límite de la cuenta',
+          }),
+        ),
+      );
+
+      await expect(pasarela.crearCobro(SOLICITUD)).rejects.toMatchObject({
+        detalle: {
+          status: 400,
+          codigo: 'bad_request',
+          mensaje: expect.stringContaining('El monto supera el límite'),
+        },
+      });
+    });
+
+    it('should normalize a network failure', async () => {
       mockFetch.mockRejectedValue(new TypeError('fetch failed'));
 
-      await expect(pasarela.crearCobro(SOLICITUD)).rejects.toThrow(
-        BadGatewayException,
-      );
+      await expect(pasarela.crearCobro(SOLICITUD)).rejects.toMatchObject({
+        detalle: {
+          status: null,
+          codigo: 'NETWORK',
+          mensaje: 'No se pudo comunicar con la pasarela de pagos',
+        },
+      });
     });
 
     it('should reject a response without payment url', async () => {
       mockFetch.mockResolvedValue(jsonResponse({ payment_id: 'p1' }));
 
-      await expect(pasarela.crearCobro(SOLICITUD)).rejects.toThrow(
-        BadGatewayException,
-      );
+      await expect(pasarela.crearCobro(SOLICITUD)).rejects.toMatchObject({
+        detalle: {
+          status: 200,
+          codigo: 'RESPUESTA_INVALIDA',
+        },
+      });
     });
   });
 
@@ -285,6 +327,20 @@ describe('KhipuPasarela', () => {
       await expect(pasarela.verificarPago('token-seguro')).rejects.toThrow(
         ServiceUnavailableException,
       );
+    });
+
+    it('should normalize a verification error with the verify operation', async () => {
+      mockFetch.mockResolvedValue(errorResponse(500, 'error interno'));
+
+      await expect(
+        pasarela.verificarPago('token-seguro'),
+      ).rejects.toMatchObject({
+        detalle: {
+          operacion: 'VERIFICAR_PAGO',
+          status: 500,
+          codigo: 'HTTP_500',
+        },
+      });
     });
   });
 });
