@@ -1,16 +1,15 @@
 import {
-  BadGatewayException,
-  HttpException,
   Injectable,
   Logger,
   ServiceUnavailableException,
 } from '@nestjs/common';
-import type { EstadoPago } from '@cgpa/shared';
-import type {
-  CobroCreado,
-  PagoVerificado,
-  PasarelaPago,
-  SolicitudCobro,
+import type { EstadoPago, OperacionPasarela } from '@cgpa/shared';
+import {
+  ErrorPasarela,
+  type CobroCreado,
+  type PagoVerificado,
+  type PasarelaPago,
+  type SolicitudCobro,
 } from '../pasarela-pago.interface';
 
 /** Tiempo máximo de espera de una llamada a la API de Khipu. */
@@ -82,13 +81,20 @@ export class KhipuPasarela implements PasarelaPago {
         }),
       },
       apiKey,
+      'CREAR_COBRO',
     );
 
     if (!respuesta?.payment_id || !respuesta?.payment_url) {
       this.logger.error(
         `Khipu no devolvió payment_id/payment_url para ${solicitud.transactionId}`,
       );
-      throw new BadGatewayException('Khipu no devolvió una URL de pago válida');
+      throw new ErrorPasarela({
+        proveedor: this.id,
+        operacion: 'CREAR_COBRO',
+        status: 200,
+        codigo: 'RESPUESTA_INVALIDA',
+        mensaje: 'Khipu no devolvió una URL de pago válida',
+      });
     }
 
     return {
@@ -119,6 +125,7 @@ export class KhipuPasarela implements PasarelaPago {
       `/payments/${encodeURIComponent(referencia)}`,
       { method: 'GET' },
       apiKey,
+      'VERIFICAR_PAGO',
     );
 
     const transactionId = detalle?.transaction_id?.trim();
@@ -183,6 +190,7 @@ export class KhipuPasarela implements PasarelaPago {
     path: string,
     init: RequestInit,
     apiKey: string,
+    operacion: OperacionPasarela,
   ): Promise<T> {
     const baseUrl = (
       process.env.KHIPU_API_BASE_URL ?? 'https://payment-api.khipu.com/v3'
@@ -200,20 +208,110 @@ export class KhipuPasarela implements PasarelaPago {
       });
 
       if (!response.ok) {
-        this.logger.error(`Khipu respondió HTTP ${response.status} en ${path}`);
-        throw new BadGatewayException('Khipu rechazó la solicitud de pago');
+        const detalle = await this.leerDetalleError(response);
+
+        this.logger.error(
+          `Khipu respondió HTTP ${response.status} en ${path}: ${detalle.mensaje}`,
+        );
+        throw new ErrorPasarela({
+          proveedor: this.id,
+          operacion,
+          status: response.status,
+          codigo: detalle.codigo,
+          mensaje: detalle.mensaje,
+        });
       }
 
       return (await response.json()) as T;
     } catch (error) {
-      if (error instanceof HttpException) throw error;
+      if (error instanceof ErrorPasarela) throw error;
 
       this.logger.error(
         `Error de comunicación con Khipu en ${path}: ${(error as Error).message}`,
       );
-      throw new BadGatewayException(
-        'No se pudo comunicar con la pasarela de pagos',
+      throw new ErrorPasarela(
+        {
+          proveedor: this.id,
+          operacion,
+          status: null,
+          codigo: 'NETWORK',
+          mensaje: 'No se pudo comunicar con la pasarela de pagos',
+        },
+        error,
       );
     }
+  }
+
+  /**
+   * Extrae un código y un mensaje seguros del cuerpo de error de Khipu.
+   *
+   * No se guarda el cuerpo crudo completo: solo los campos de error conocidos,
+   * sin credenciales ni datos del pagador.
+   */
+  private async leerDetalleError(
+    response: Response,
+  ): Promise<{ codigo: string | null; mensaje: string }> {
+    let texto = '';
+
+    try {
+      texto = (await response.text()).trim();
+    } catch {
+      texto = '';
+    }
+
+    let cuerpo: Record<string, unknown> | null = null;
+    try {
+      cuerpo = texto ? (JSON.parse(texto) as Record<string, unknown>) : null;
+    } catch {
+      cuerpo = null;
+    }
+
+    if (cuerpo) {
+      const codigo =
+        this.extraerTexto(cuerpo, ['code', 'error', 'error_code']) ??
+        `HTTP_${response.status}`;
+      const mensaje =
+        this.extraerTexto(cuerpo, ['message', 'detail', 'error_description']) ??
+        `Khipu respondió HTTP ${response.status}`;
+
+      return {
+        codigo: this.recortar(codigo, 100),
+        mensaje: this.recortar(`${mensaje} (HTTP ${response.status})`, 500),
+      };
+    }
+
+    // Si el cuerpo no es JSON no se guarda su contenido: podría incluir datos
+    // que no corresponden a un mensaje de error controlado.
+    return {
+      codigo: `HTTP_${response.status}`,
+      mensaje: `Khipu respondió HTTP ${response.status} sin detalle`,
+    };
+  }
+
+  private extraerTexto(
+    cuerpo: Record<string, unknown>,
+    campos: string[],
+  ): string | null {
+    for (const campo of campos) {
+      const valor = cuerpo[campo];
+
+      if (typeof valor === 'string' && valor.trim().length > 0) {
+        return valor.trim();
+      }
+
+      if (Array.isArray(valor)) {
+        const textos = valor.filter(
+          (item): item is string => typeof item === 'string',
+        );
+
+        if (textos.length > 0) return textos.join('; ');
+      }
+    }
+
+    return null;
+  }
+
+  private recortar(texto: string, maximo: number): string {
+    return texto.replace(/\s+/g, ' ').trim().slice(0, maximo);
   }
 }

@@ -1,4 +1,8 @@
-import type { EstadoPago, ProveedorPago } from '@cgpa/shared';
+import type {
+  EstadoPago,
+  OperacionPasarela,
+  ProveedorPago,
+} from '@cgpa/shared';
 
 /**
  * Token de inyección con la lista de pasarelas disponibles.
@@ -50,6 +54,34 @@ export interface PagoVerificado {
   referenciaExterna?: string;
   banco?: string;
   pagadoEn?: Date;
+}
+
+/** Detalle normalizado de un error de pasarela, apto para auditoría. */
+export interface DetalleErrorPasarela {
+  proveedor: ProveedorPago;
+  operacion: OperacionPasarela;
+  /** Código HTTP del proveedor, o `null` si no hubo respuesta. */
+  status: number | null;
+  /** Código de error del proveedor, si lo informó. */
+  codigo: string | null;
+  /** Mensaje saneado y truncado; nunca incluye credenciales. */
+  mensaje: string;
+}
+
+/**
+ * Error de una pasarela de pago.
+ *
+ * El orquestador lo registra en la colección de errores y lo traduce a una
+ * respuesta HTTP segura para el cliente.
+ */
+export class ErrorPasarela extends Error {
+  constructor(
+    readonly detalle: DetalleErrorPasarela,
+    readonly causa?: unknown,
+  ) {
+    super(detalle.mensaje);
+    this.name = 'ErrorPasarela';
+  }
 }
 
 /**

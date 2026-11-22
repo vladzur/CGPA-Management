@@ -155,10 +155,22 @@ registro guarda `tipo_aporte` (`CUOTA_ANUAL`/`DONACION`), `periodo` (año de la 
 Khipu).
 
 La directiva revisa los cobros en **`/admin/pagos`**: fecha, tipo, monto, estado, pagador,
-estudiante/curso, banco y referencia.
+estudiante/curso, banco y referencia. La misma vista incluye los errores reales de las pasarelas.
 
 > El pago confirmado **no** crea automáticamente una transacción de ingreso: la directiva decide
 > cuándo conciliarlo en la contabilidad del CGPA con su respaldo correspondiente.
+
+### Errores de pasarelas
+
+Los errores reales de creación y verificación de cobros se guardan en la colección
+**`pagos_errores`** (configurable con `PAGOS_ERRORES_COLECCION`). Cada registro incluye la pasarela,
+la operación (`CREAR_COBRO`/`VERIFICAR_PAGO`), el origen (`API`/`WEBHOOK`/`CONSULTA_ESTADO`), el
+estado HTTP, el código y un mensaje saneado del proveedor. No se guarda el cuerpo crudo ni datos
+personales.
+
+El registro es agnóstico a la pasarela: cualquier implementación de `PasarelaPago` que lance
+`ErrorPasarela` queda registrada por el orquestador. La directiva los revisa en la sección
+**“Errores de pasarelas”** de `/admin/pagos`.
 
 ### Variables de entorno (`apps/api`)
 
@@ -170,6 +182,7 @@ estudiante/curso, banco y referencia.
 | `CLIENT_BASE_URL` | No | URL del frontend para `return_url` y `cancel_url`. En producción: `https://cgpagrahambell.cl`. |
 | `PAGO_TTL_DIAS` | No | Vigencia de cada cobro en días (por defecto `7`). |
 | `PAGOS_COLECCION` | No | Colección de Firestore (por defecto `pagos`). En producción se fija a `pagos`; `pagos_sandbox` queda solo para pruebas locales aisladas. |
+| `PAGOS_ERRORES_COLECCION` | No | Colección de errores de pasarelas (por defecto `pagos_errores`). |
 
 > La **llave de cobrador** (merchant secret) no es la API Key. Se usa para verificar la firma HMAC
 > del webhook y no se guarda en el repositorio. Esta entrega no implementa la verificación de
@@ -182,10 +195,11 @@ estudiante/curso, banco y referencia.
 - El webhook solo aporta una referencia; el estado real siempre se obtiene desde la pasarela.
 - Un pago `PAGADO` nunca retrocede por una notificación duplicada o fuera de orden.
 - Una notificación de una pasarela distinta a la del cobro se descarta.
-- Las reglas de Firestore bloquean toda lectura/escritura directa a `pagos`.
+- Las reglas de Firestore bloquean toda lectura/escritura directa a `pagos` y a `pagos_errores`.
 - La consulta pública omite correo, nombre, estudiante/curso y `token_notificacion`; esos datos
   solo se ven en `/admin/pagos` con un ADMIN activo.
-- Los errores de comunicación con la pasarela se registran con `Logger` para facilitar el soporte.
+- Los errores de comunicación con la pasarela se registran en `pagos_errores` y se consultan solo
+  desde `/admin/pagos` con un ADMIN activo.
 
 ### Publicación controlada del botón
 

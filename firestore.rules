@@ -81,6 +81,14 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // Errores de pasarelas: diagnóstico interno del backend. Pueden incluir
+    // mensajes del proveedor y referencias de cobro, así que solo los lee el
+    // backend (Admin SDK) y se exponen a un ADMIN activo vía /api/pagos/errores.
+    match /pagos_errores/{errorId} {
+      allow read: if false;
+      allow write: if false;
+    }
+
     // Usuarios: solo acceso para ADMIN, escrituras vía backend
     match /usuarios/{document=**} {
       allow read: if request.auth != null && request.auth.token.role == 'ADMIN';

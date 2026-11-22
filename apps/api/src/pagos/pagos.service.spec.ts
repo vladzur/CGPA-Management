@@ -1,8 +1,15 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { BadGatewayException, NotFoundException } from '@nestjs/common';
+import {
+  BadGatewayException,
+  NotFoundException,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import { PagosService } from './pagos.service';
 import { PasarelasService } from './pasarelas/pasarelas.service';
-import type { PasarelaPago } from './pasarelas/pasarela-pago.interface';
+import {
+  ErrorPasarela,
+  type PasarelaPago,
+} from './pasarelas/pasarela-pago.interface';
 import {
   createMockFirestore,
   createMockDocumentRef,
@@ -102,13 +109,21 @@ describe('PagosService', () => {
     delete process.env.VERIFICATION_BASE_URL;
     delete process.env.PAGO_TTL_DIAS;
     delete process.env.PAGOS_COLECCION;
+    delete process.env.PAGOS_ERRORES_COLECCION;
   });
 
   function setupDocRef(id = TRANSACTION_ID) {
     const docRef = createMockDocumentRef(id);
     const collection: any = { doc: jest.fn().mockReturnValue(docRef) };
-    mockFirestore.collection.mockReturnValue(collection);
-    return { collection, docRef };
+    const errorRef: any = {
+      add: jest.fn().mockResolvedValue({ id: 'error-1' }),
+    };
+
+    mockFirestore.collection.mockImplementation((name: string) =>
+      name.startsWith('pagos_errores') ? errorRef : collection,
+    );
+
+    return { collection, docRef, errorRef };
   }
 
   function setupTransaction(snapshot: any) {
@@ -336,14 +351,75 @@ describe('PagosService', () => {
       expect(expires).toBeLessThan(Date.now() + unDia + 60_000);
     });
 
-    it('should propagate a gateway failure without persisting anything', async () => {
-      const { docRef } = setupDocRef();
+    it('should propagate a gateway failure and record it', async () => {
+      const { docRef, errorRef } = setupDocRef();
       pasarela.crearCobro.mockRejectedValue(new BadGatewayException('caído'));
 
       await expect(service.crearPago('khipu', DTO)).rejects.toThrow(
         BadGatewayException,
       );
       expect(docRef.set).not.toHaveBeenCalled();
+      expect(errorRef.add).toHaveBeenCalledWith(
+        expect.objectContaining({
+          proveedor: 'khipu',
+          operacion: 'CREAR_COBRO',
+          origen: 'API',
+          transaction_id: expect.stringMatching(/^CGPA-PAY-\d{4}-/),
+          http_status: null,
+          codigo: 'DESCONOCIDO',
+          mensaje: 'caído',
+        }),
+      );
+    });
+
+    it('should record the provider status and code', async () => {
+      const { docRef, errorRef } = setupDocRef();
+      pasarela.crearCobro.mockRejectedValue(
+        new ErrorPasarela({
+          proveedor: 'khipu',
+          operacion: 'CREAR_COBRO',
+          status: 403,
+          codigo: 'HTTP_403',
+          mensaje: 'Khipu respondió HTTP 403 sin detalle',
+        }),
+      );
+
+      await expect(service.crearPago('khipu', DTO)).rejects.toThrow('HTTP 403');
+      expect(docRef.set).not.toHaveBeenCalled();
+      expect(errorRef.add).toHaveBeenCalledWith(
+        expect.objectContaining({
+          http_status: 403,
+          codigo: 'HTTP_403',
+          mensaje: 'Khipu respondió HTTP 403 sin detalle',
+        }),
+      );
+    });
+
+    it('should not record a configuration error', async () => {
+      const { errorRef } = setupDocRef();
+      pasarela.crearCobro.mockRejectedValue(
+        new ServiceUnavailableException('sin configurar'),
+      );
+
+      await expect(service.crearPago('khipu', DTO)).rejects.toThrow(
+        ServiceUnavailableException,
+      );
+      expect(errorRef.add).not.toHaveBeenCalled();
+    });
+
+    it('should honour a custom errors collection', async () => {
+      process.env.PAGOS_ERRORES_COLECCION = 'pagos_errores_sandbox';
+      const { errorRef } = setupDocRef();
+      pasarela.crearCobro.mockRejectedValue(new BadGatewayException('caído'));
+
+      await expect(service.crearPago('khipu', DTO)).rejects.toThrow(
+        BadGatewayException,
+      );
+
+      expect(mockFirestore.collection).toHaveBeenCalledWith(
+        'pagos_errores_sandbox',
+      );
+      expect(errorRef.add).toHaveBeenCalled();
     });
   });
 
@@ -405,6 +481,35 @@ describe('PagosService', () => {
         transactionId: null,
       });
       expect(mockFirestore.runTransaction).not.toHaveBeenCalled();
+    });
+
+    it('should record a verification error and fail the webhook', async () => {
+      const { errorRef } = setupDocRef();
+      pasarela.extraerReferenciaNotificacion.mockReturnValue('token-seguro');
+      pasarela.verificarPago.mockRejectedValue(
+        new ErrorPasarela({
+          proveedor: 'khipu',
+          operacion: 'VERIFICAR_PAGO',
+          status: 500,
+          codigo: 'HTTP_500',
+          mensaje: 'Khipu respondió HTTP 500',
+        }),
+      );
+
+      await expect(service.procesarNotificacion('khipu', {})).rejects.toThrow(
+        'HTTP 500',
+      );
+
+      expect(errorRef.add).toHaveBeenCalledWith(
+        expect.objectContaining({
+          proveedor: 'khipu',
+          operacion: 'VERIFICAR_PAGO',
+          origen: 'WEBHOOK',
+          referencia_externa: 'token-seguro',
+          http_status: 500,
+          codigo: 'HTTP_500',
+        }),
+      );
     });
 
     it('should be idempotent when the payment is already paid', async () => {
@@ -711,8 +816,8 @@ describe('PagosService', () => {
       expect(pasarela.verificarPago).toHaveBeenCalledWith('token-seguro');
     });
 
-    it('should keep the local state when the gateway cannot be reached', async () => {
-      const { docRef } = setupDocRef();
+    it('should keep the local state and record the reconciliation error', async () => {
+      const { docRef, errorRef } = setupDocRef();
       docRef.get.mockResolvedValue(
         createMockDocSnapshot(
           TRANSACTION_ID,
@@ -726,6 +831,16 @@ describe('PagosService', () => {
       const pago = await service.consultarPago(TRANSACTION_ID);
 
       expect(pago.estado).toBe('PENDIENTE');
+      expect(errorRef.add).toHaveBeenCalledWith(
+        expect.objectContaining({
+          operacion: 'VERIFICAR_PAGO',
+          origen: 'CONSULTA_ESTADO',
+          transaction_id: TRANSACTION_ID,
+          referencia_externa: 'abc123xyz456',
+          codigo: 'DESCONOCIDO',
+          mensaje: 'sin conexión',
+        }),
+      );
     });
 
     it('should keep the local state when the gateway returns nothing', async () => {
@@ -787,6 +902,41 @@ describe('PagosService', () => {
       expect(pagos[0]).not.toHaveProperty('token_notificacion');
       expect(orderedQuery.orderBy).toHaveBeenCalledWith('creado_en', 'desc');
       expect(limitedQuery.limit).toHaveBeenCalledWith(200);
+    });
+  });
+
+  // ─── listarErroresPago ─────────────────────────────────────────────────────
+
+  describe('listarErroresPago', () => {
+    it('should return the latest provider errors', async () => {
+      const querySnapshot = createQuerySnapshot([
+        {
+          id: 'error-1',
+          data: {
+            proveedor: 'khipu',
+            operacion: 'CREAR_COBRO',
+            origen: 'API',
+            http_status: 403,
+            codigo: 'HTTP_403',
+            mensaje: 'Khipu respondió HTTP 403',
+            creado_en: new Date(),
+          },
+        },
+      ]);
+      const fakeQuery = { get: jest.fn().mockResolvedValue(querySnapshot) };
+      const limitedQuery = { limit: jest.fn().mockReturnValue(fakeQuery) };
+      const orderedQuery = {
+        orderBy: jest.fn().mockReturnValue(limitedQuery),
+      };
+      mockFirestore.collection.mockReturnValue(orderedQuery as any);
+
+      const errores = await service.listarErroresPago();
+
+      expect(errores).toHaveLength(1);
+      expect(errores[0].id).toBe('error-1');
+      expect(mockFirestore.collection).toHaveBeenCalledWith('pagos_errores');
+      expect(orderedQuery.orderBy).toHaveBeenCalledWith('creado_en', 'desc');
+      expect(limitedQuery.limit).toHaveBeenCalledWith(100);
     });
   });
 });

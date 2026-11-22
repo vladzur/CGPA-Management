@@ -9,9 +9,12 @@
 import { computed, onMounted, ref } from 'vue';
 import {
   ESTADO_PAGO_LABELS,
+  OPERACION_PASARELA_LABELS,
+  ORIGEN_ERROR_PASARELA_LABELS,
   TIPO_APORTE_LABELS,
   type EstadoPago,
   type Pago,
+  type PagoError,
   type TipoAporte,
 } from '@cgpa/shared';
 import apiClient from '../../plugins/axios';
@@ -46,6 +49,27 @@ const fetchPagos = async (): Promise<void> => {
       err.response?.data?.message || 'No se pudieron cargar los pagos.';
   } finally {
     loading.value = false;
+  }
+};
+
+const errores = ref<Array<PagoError & { id: string }>>([]);
+const loadingErrores = ref(true);
+const errorErrores = ref('');
+
+const fetchErrores = async (): Promise<void> => {
+  loadingErrores.value = true;
+  errorErrores.value = '';
+
+  try {
+    const { data } = await apiClient.get<Array<PagoError & { id: string }>>(
+      '/pagos/errores',
+    );
+    errores.value = data;
+  } catch (err: any) {
+    errorErrores.value =
+      err.response?.data?.message || 'No se pudieron cargar los errores.';
+  } finally {
+    loadingErrores.value = false;
   }
 };
 
@@ -84,7 +108,10 @@ const estadoBadge = (estado: EstadoPago): string => {
   }
 };
 
-onMounted(fetchPagos);
+onMounted(() => {
+  void fetchPagos();
+  void fetchErrores();
+});
 </script>
 
 <template>
@@ -228,5 +255,86 @@ onMounted(fetchPagos);
       Un pago confirmado no crea automáticamente una transacción de ingreso: la
       directiva decide cuándo conciliarlo en la contabilidad del CGPA.
     </p>
+
+    <section class="mt-12 border-t border-base-200 pt-8">
+      <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
+        <div>
+          <h2 class="text-2xl font-bold text-base-content">
+            Errores de pasarelas
+          </h2>
+          <p class="text-base-content/70 mt-1">
+            Últimos 100 errores reales de creación o verificación de cobros.
+            Son de diagnóstico interno y no se muestran al público.
+          </p>
+        </div>
+        <button
+          type="button"
+          class="btn btn-outline btn-sm"
+          :disabled="loadingErrores"
+          @click="fetchErrores"
+        >
+          <span
+            v-if="loadingErrores"
+            class="loading loading-spinner loading-xs"
+          ></span>
+          Actualizar errores
+        </button>
+      </div>
+
+      <div v-if="errorErrores" class="alert alert-error mb-4">
+        <span>{{ errorErrores }}</span>
+      </div>
+
+      <div v-if="loadingErrores" class="flex justify-center py-10">
+        <span class="loading loading-bars loading-lg text-primary"></span>
+      </div>
+
+      <div v-else-if="errores.length === 0" class="alert alert-success">
+        <span>No hay errores registrados.</span>
+      </div>
+
+      <div v-else class="overflow-x-auto rounded-box border border-base-200">
+        <table class="table table-zebra bg-base-100">
+          <thead>
+            <tr>
+              <th>Fecha</th>
+              <th>Proveedor</th>
+              <th>Operación</th>
+              <th>Origen</th>
+              <th>HTTP</th>
+              <th>Código</th>
+              <th>Mensaje</th>
+              <th>Referencia</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="registro in errores" :key="registro.id">
+              <td class="whitespace-nowrap text-sm">
+                {{ formatDateTime(registro.creado_en) }}
+              </td>
+              <td class="text-sm">{{ registro.proveedor }}</td>
+              <td class="text-sm">
+                {{ OPERACION_PASARELA_LABELS[registro.operacion] }}
+              </td>
+              <td class="text-sm">
+                {{ ORIGEN_ERROR_PASARELA_LABELS[registro.origen] }}
+              </td>
+              <td class="text-sm">{{ registro.http_status ?? '—' }}</td>
+              <td class="font-mono text-xs">{{ registro.codigo || '—' }}</td>
+              <td class="text-sm max-w-md whitespace-normal">
+                {{ registro.mensaje }}
+              </td>
+              <td class="font-mono text-xs">
+                {{
+                  registro.transaction_id ||
+                  registro.referencia_externa ||
+                  '—'
+                }}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
   </div>
 </template>

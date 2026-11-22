@@ -64,9 +64,9 @@ las páginas de confirmación/cancelación ni el modelo de datos.
 | Archivo | Rol |
 |---|---|
 | `pagos.controller.ts` | Rutas HTTP públicas y de administración. |
-| `pagos.service.ts` | Orquestador: crea cobros, aplica notificaciones, reconcilia y lista. |
+| `pagos.service.ts` | Orquestador: crea cobros, registra errores de pasarela, aplica notificaciones, reconcilia y lista. |
 | `dto/create-pago.dto.ts` | Validación Zod del formulario (tipo de aporte, monto, nombre, correo y estudiante opcional). |
-| `pasarelas/pasarela-pago.interface.ts` | Contrato `PasarelaPago` y token `PASARELAS_PAGO`. |
+| `pasarelas/pasarela-pago.interface.ts` | Contrato `PasarelaPago`, error normalizado `ErrorPasarela` y token `PASARELAS_PAGO`. |
 | `pasarelas/pasarelas.service.ts` | Registro: resuelve una pasarela por identificador. |
 | `pasarelas/khipu/khipu-pasarela.ts` | Implementación Khipu. |
 | `pagos.module.ts` | Registra las pasarelas disponibles en el arreglo `PASARELAS_PAGO`. |
@@ -78,8 +78,11 @@ las páginas de confirmación/cancelación ni el modelo de datos.
 - `ProveedorPagoSchema` / `ProveedorPago`: pasarelas soportadas (`khipu`).
 - `EstadoPagoSchema` / `EstadoPago`: `PENDIENTE`, `PAGADO`, `CANCELADO`, `FALLIDO`.
 - `TipoAporteSchema` / `TipoAporte`: `CUOTA_ANUAL`, `DONACION`.
+- `OperacionPasarelaSchema` / `OrigenErrorPasarelaSchema`: operación y origen de un error.
 - `PagoSchema` / `Pago`: documento persistido.
+- `PagoErrorSchema` / `PagoError`: error real de pasarela para diagnóstico interno.
 - `ESTADO_PAGO_LABELS`, `PROVEEDOR_PAGO_LABELS`, `TIPO_APORTE_LABELS`,
+  `OPERACION_PASARELA_LABELS`, `ORIGEN_ERROR_PASARELA_LABELS`,
   `PROVEEDOR_PAGO_PREDETERMINADO`.
 - `PAGO_MONTO_MINIMO` (100), `PAGO_MONTO_MAXIMO` (10.000.000).
 - `CUOTA_ANUAL_PERIODO` (2027), `CUOTA_ANUAL_MONTO_SUGERIDO` (10.000),
@@ -92,7 +95,7 @@ las páginas de confirmación/cancelación ni el modelo de datos.
 | `views/Pagar.vue` | Formulario público con selector cuota/donación; envía a `POST /pagos/:proveedor` y redirige a la URL devuelta. |
 | `views/PagoConfirmacion.vue` | Retorno del apoderado: consulta `GET /pagos/:transactionId` cada 3 s (máx. 20 intentos) hasta un estado terminal. |
 | `views/PagoCancelado.vue` | Retorno cuando el apoderado abandona el pago. |
-| `views/admin/AdminPagos.vue` | Panel de solo lectura con los últimos 200 cobros, total confirmado y filtros por tipo/estado. |
+| `views/admin/AdminPagos.vue` | Panel de solo lectura con los últimos 200 cobros, total confirmado, filtros y los últimos 100 errores de pasarelas. |
 | `utils/pago-form.ts` | Validación del formulario y armado del payload (independiente del proveedor). |
 | `content/public-routes.ts` | Declara `/pagar` y el interruptor `PAGOS_HABILITADOS`; los retornos quedan fuera del catálogo indexable. |
 
@@ -137,6 +140,27 @@ Colección de Firestore **`pagos`**, documento con id = `transaction_id`.
 Además se descarta el cambio (sin error HTTP) cuando: el cobro no existe, la notificación llega por
 otra pasarela, o el monto/moneda informados no coinciden exactamente con el cobro registrado.
 
+### Errores de pasarelas (`pagos_errores`)
+
+Colección de Firestore **`pagos_errores`** (configurable con `PAGOS_ERRORES_COLECCION`). Guarda los
+errores reales de creación y verificación para diagnóstico interno; es agnóstica a la pasarela.
+
+| Campo | Tipo | Descripción |
+|---|---|---|
+| `proveedor` | `ProveedorPago` | Pasarela que falló. |
+| `operacion` | `'CREAR_COBRO' \| 'VERIFICAR_PAGO'` | Operación que originó el error. |
+| `origen` | `'API' \| 'WEBHOOK' \| 'CONSULTA_ESTADO'` | Punto del flujo donde se detectó. |
+| `transaction_id` | string? | Referencia interna del cobro, si se conocía. |
+| `referencia_externa` | string? | Referencia del proveedor usada en la verificación. |
+| `http_status` | int? | Código HTTP del proveedor, o `null` si no hubo respuesta. |
+| `codigo` | string? | Código de error del proveedor; `NETWORK`, `DESCONOCIDO` o `HTTP_<status>` como respaldo. |
+| `mensaje` | string | Mensaje saneado y truncado; nunca incluye credenciales ni datos personales. |
+| `creado_en` | timestamp | Fecha del registro. |
+
+El registro nunca interrumpe el flujo principal: si Firestore falla al guardar el error, se informa
+por log y se propaga el error original. `GET /api/pagos/errores` (solo ADMIN) devuelve los últimos
+100 registros.
+
 ---
 
 ## 4. Contrato `PasarelaPago`
@@ -166,6 +190,11 @@ que un cliente no pueda alterarlo.
 `estadoDetalle`, `referenciaExterna`, `banco` y `pagadoEn`. El orquestador usa `monto` y `moneda`
 para contrastar contra el registro local.
 
+Cuando el proveedor responde con error o no hay comunicación, la pasarela lanza `ErrorPasarela`
+con `{ proveedor, operacion, status, codigo, mensaje }`. El orquestador lo registra en
+`pagos_errores` y responde al cliente con un `502` seguro; la falta de credenciales sigue siendo
+`503` y no se registra como error del proveedor.
+
 ---
 
 ## 5. Endpoints
@@ -176,6 +205,7 @@ para contrastar contra el registro local.
 | `POST` | `/api/pagos/:proveedor/webhook` | Público | `200` con `{ recibido: true, estado }` |
 | `GET` | `/api/pagos/:transactionId` | Público | Datos no sensibles del cobro |
 | `GET` | `/api/pagos` | `ADMIN` activo | Últimos 200 cobros, ordenados por `creado_en` desc, sin `token_notificacion` |
+| `GET` | `/api/pagos/errores` | `ADMIN` activo | Últimos 100 errores reales de pasarelas |
 
 `GET /api/pagos/:transactionId` devuelve solo `transaction_id`, `proveedor`, `asunto`, `moneda`,
 `monto`, `tipo_aporte`, `estado`, `estado_detalle`, `banco`, `pagado_en`, `creado_en` y
@@ -218,6 +248,7 @@ Variables de `apps/api` (ver [`.env.example`](../apps/api/.env.example)):
 | `CLIENT_BASE_URL` | No | URL del frontend para `return_url` y `cancel_url`. Si falta, se usa `VERIFICATION_BASE_URL`. |
 | `PAGO_TTL_DIAS` | No | Vigencia de cada cobro en días (por defecto `7`). |
 | `PAGOS_COLECCION` | No | Colección de Firestore (por defecto `pagos`). En producción se fija explícitamente a `pagos`; `pagos_sandbox` queda solo para pruebas locales aisladas. |
+| `PAGOS_ERRORES_COLECCION` | No | Colección de errores de pasarelas (por defecto `pagos_errores`). |
 | `KHIPU_API_KEY` | Sí, si Khipu está activo | API Key de producción creada en el portal de Khipu (cabecera `x-api-key`). |
 | `KHIPU_API_BASE_URL` | No | Base de la API v3 (`https://payment-api.khipu.com/v3`). |
 
@@ -263,8 +294,8 @@ El catálogo `PUBLIC_ROUTES` conserva la ruta para los metadatos y el prerender;
 5. **Datos personales**: la consulta pública omite correo, nombre, estudiante/curso y
    `token_notificacion`. El panel `/admin/pagos` los muestra solo a un ADMIN activo, autenticado
    contra la API.
-6. **Firestore**: las reglas bloquean cualquier lectura/escritura directa a `pagos`; solo el Admin
-   SDK opera la colección.
+6. **Firestore**: las reglas bloquean cualquier lectura/escritura directa a `pagos` y a
+   `pagos_errores`; solo el Admin SDK opera ambas colecciones.
 7. **Trazabilidad**: los errores de comunicación se registran con `Logger` (nunca se registran
    credenciales ni tokens completos).
 
@@ -345,6 +376,8 @@ Reglas obligatorias para la implementación:
   `Logger`.
 - **Estados**: mapear **todos** los estados del proveedor a `EstadoPago`; lo desconocido queda
   `PENDIENTE` (nunca `PAGADO` por defecto).
+- **Errores**: lanzar `ErrorPasarela` con el status, un código y un mensaje saneado. No incluir
+  credenciales ni el cuerpo crudo; el orquestador se encarga de persistirlo en `pagos_errores`.
 - **Campos opcionales**: no asignar `undefined`; solo agregar `estadoDetalle`, `referenciaExterna`,
   `banco` y `pagadoEn` cuando el proveedor los informe.
 - **Timeout**: toda llamada externa debe tener un límite (`AbortSignal.timeout`).
@@ -444,7 +477,7 @@ Recuerda actualizar `Pagar.spec.ts` para cubrir el selector.
 
 | Nivel | Archivo | Qué debe cubrir |
 |---|---|---|
-| Unitario de pasarela | `pasarelas/<proveedor>/<proveedor>-pasarela.spec.ts` | Payload y headers, mapeo de **todos** los estados, errores 502/503, referencias inválidas |
+| Unitario de pasarela | `pasarelas/<proveedor>/<proveedor>-pasarela.spec.ts` | Payload y headers, mapeo de **todos** los estados, normalización de errores HTTP/red, referencias inválidas |
 | Unitario del registro | `pasarelas/pasarelas.service.spec.ts` | Alta de la nueva pasarela y rechazo de ids desconocidos |
 | E2E | `test/pagos.e2e-spec.ts` | `POST /pagos/<proveedor>`, webhook y validaciones |
 | Cliente (si hay selector) | `views/Pagar.spec.ts` | Envío con el proveedor elegido |
@@ -496,7 +529,7 @@ implementar.
 | Síntoma | Causa probable | Acción |
 |---|---|---|
 | `503` al crear el cobro | Falta la credencial del proveedor (`KHIPU_API_KEY`, etc.) | Configurar la variable y reiniciar el servicio |
-| `502` al crear el cobro | Proveedor caído, credencial inválida o timeout | Revisar logs del `Logger` y el estado del proveedor |
+| `502` al crear el cobro | Proveedor caído, credencial inválida, límite de la cuenta o timeout | Revisar la sección **Errores de pasarelas** en `/admin/pagos` y el status HTTP registrado |
 | `400 Método de pago no soportado` | Pasarela no registrada en `PASARELAS_PAGO` o id con error de tipeo | Verificar `ProveedorPagoSchema` y el módulo |
 | El pago quedó `PENDIENTE` | Webhook no llegó (URL no pública) o el banco aún verifica | Revisar `PUBLIC_API_URL`; la página de confirmación reconcilia sola |
 | El webhook responde `200` pero no cambia el estado | Monto/moneda distintos, cobro inexistente o notificación de otra pasarela | Buscar en logs `Discrepancia en el pago` o `Notificación para un cobro desconocido` |
