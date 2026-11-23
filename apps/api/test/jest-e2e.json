@@ -1,13 +1,38 @@
 {
-  "moduleFileExtensions": ["js", "json", "ts"],
+  "moduleFileExtensions": [
+    "js",
+    "json",
+    "ts"
+  ],
   "rootDir": ".",
   "testEnvironment": "node",
   "testRegex": ".e2e-spec.ts$",
   "transform": {
-    "^.+\\.(t|j)s$": "ts-jest"
+    "^.+\\.ts$": [
+      "ts-jest",
+      {}
+    ],
+    "^.+\\.js$": [
+      "babel-jest",
+      {
+        "presets": [
+          [
+            "@babel/preset-env",
+            {
+              "targets": {
+                "node": "current"
+              }
+            }
+          ]
+        ]
+      }
+    ]
   },
   "moduleNameMapper": {
     "^@cgpa/shared$": "<rootDir>/../../../packages/shared/src/index.ts",
     "^uuid$": "<rootDir>/uuid-mock.js"
-  }
+  },
+  "transformIgnorePatterns": [
+    "/node_modules/(?!.*marked)"
+  ]
 }

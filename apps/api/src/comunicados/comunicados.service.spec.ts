@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { NotFoundException } from '@nestjs/common';
 import { ComunicadosService } from './comunicados.service';
 import { AuditService } from '../common/audit/audit.service';
+import { MarkdownPolicyService } from '../common/markdown/markdown-policy.service';
 import {
   createMockFirestore,
   createMockDocumentRef,
@@ -33,6 +34,7 @@ describe('ComunicadosService', () => {
   let service: ComunicadosService;
   let mockFirestore: ReturnType<typeof createMockFirestore>;
   let mockAuditService: jest.Mocked<AuditService>;
+  let mockMarkdownPolicy: { assertValid: jest.Mock; validate: jest.Mock };
 
   beforeEach(async () => {
     mockFirestore = createMockFirestore();
@@ -47,10 +49,16 @@ describe('ComunicadosService', () => {
       logActionWithTransactionOrBatch: jest.fn(),
     } as any;
 
+    mockMarkdownPolicy = {
+      assertValid: jest.fn(),
+      validate: jest.fn().mockReturnValue([]),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         ComunicadosService,
         { provide: AuditService, useValue: mockAuditService },
+        { provide: MarkdownPolicyService, useValue: mockMarkdownPolicy },
       ],
     }).compile();
 

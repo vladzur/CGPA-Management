@@ -1,12 +1,10 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { marked } from 'marked';
-
-marked.setOptions({ breaks: true, gfm: true });
+import { renderMarkdown } from '../utils/markdown';
 
 const props = defineProps<{ content: string }>();
 
-const renderedHtml = computed(() => marked.parse(props.content) as string);
+const renderedHtml = computed(() => renderMarkdown(props.content));
 </script>
 
 <template>

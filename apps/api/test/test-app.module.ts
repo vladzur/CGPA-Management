@@ -15,6 +15,7 @@ import { ProyectosService } from '../src/proyectos/proyectos.service';
 import { UsuariosService } from '../src/usuarios/usuarios.service';
 import { ComunicadosController } from '../src/comunicados/comunicados.controller';
 import { ComunicadosService } from '../src/comunicados/comunicados.service';
+import { MarkdownPolicyService } from '../src/common/markdown/markdown-policy.service';
 import { MensajesController } from '../src/mensajes/mensajes.controller';
 import { MensajesService } from '../src/mensajes/mensajes.service';
 import { PagosController } from '../src/pagos/pagos.controller';
@@ -45,6 +46,7 @@ import { CryptoSealService } from '../src/common/crypto/crypto-seal.service';
     ProyectosService,
     UsuariosService,
     ComunicadosService,
+    MarkdownPolicyService,
     MensajesService,
     PagosService,
     PasarelasService,

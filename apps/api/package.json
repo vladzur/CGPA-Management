@@ -19,7 +19,8 @@
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
-    "test:e2e": "jest --config ./test/jest-e2e.json"
+    "test:e2e": "jest --config ./test/jest-e2e.json",
+    "audit:markdown": "node scripts/audit-markdown-content.mjs"
   },
   "dependencies": {
     "@cgpa/shared": "workspace:*",
@@ -28,6 +29,7 @@
     "@nestjs/platform-express": "^11.0.1",
     "dotenv": "^17.4.2",
     "firebase-admin": "^13.8.0",
+    "marked": "^18.0.3",
     "multer": "^2.2.0",
     "pdfkit": "^0.18.0",
     "qrcode": "^1.5.4",
@@ -37,6 +39,7 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@babel/preset-env": "^8.0.7",
     "@eslint/eslintrc": "^3.2.0",
     "@eslint/js": "^9.18.0",
     "@nestjs/cli": "^11.0.0",
@@ -50,6 +53,7 @@
     "@types/qrcode": "^1.5.6",
     "@types/supertest": "^7.0.0",
     "@types/uuid": "^11.0.0",
+    "babel-jest": "^30.5.2",
     "eslint": "^9.18.0",
     "eslint-config-prettier": "^10.0.1",
     "eslint-plugin-prettier": "^5.2.2",
@@ -75,7 +79,25 @@
     "rootDir": "src",
     "testRegex": ".*\\.spec\\.ts$",
     "transform": {
-      "^.+\\.(t|j)s$": "ts-jest"
+      "^.+\\.ts$": [
+        "ts-jest",
+        {}
+      ],
+      "^.+\\.js$": [
+        "babel-jest",
+        {
+          "presets": [
+            [
+              "@babel/preset-env",
+              {
+                "targets": {
+                  "node": "current"
+                }
+              }
+            ]
+          ]
+        }
+      ]
     },
     "moduleNameMapper": {
       "^@cgpa/shared$": "<rootDir>/../../../packages/shared/src/index.ts",
@@ -101,6 +123,9 @@
         "statements": 80
       }
     },
-    "testEnvironment": "node"
+    "testEnvironment": "node",
+    "transformIgnorePatterns": [
+      "/node_modules/(?!.*marked)"
+    ]
   }
 }

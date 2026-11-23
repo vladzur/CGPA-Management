@@ -199,6 +199,21 @@ describe('ComunicadosController (e2e)', () => {
         .expect(400);
     });
 
+    it.each([
+      '<img src=x onerror=alert(1)>',
+      '<script>alert(1)</script>',
+      '[click](javascript:alert(1))',
+      '<svg onload=alert(1)></svg>',
+    ])('debe rechazar contenido Markdown no permitido: %s', async (contenido) => {
+      await request(app.getHttpServer())
+        .post('/comunicados')
+        .set('Authorization', 'Bearer valid-token')
+        .send({ ...validBody, contenido })
+        .expect(400);
+
+      expect(mockComunicadosService.create).not.toHaveBeenCalled();
+    });
+
     it('debe retornar 201 en happy path', async () => {
       const { body } = await request(app.getHttpServer())
         .post('/comunicados')
@@ -231,6 +246,16 @@ describe('ComunicadosController (e2e)', () => {
         .set('Authorization', 'Bearer valid-token')
         .send({ titulo: '' })
         .expect(400);
+    });
+
+    it('debe rechazar HTML crudo al actualizar un comunicado', async () => {
+      await request(app.getHttpServer())
+        .patch('/comunicados/com-e2e-001')
+        .set('Authorization', 'Bearer valid-token')
+        .send({ contenido: '<iframe src="https://evil.example"></iframe>' })
+        .expect(400);
+
+      expect(mockComunicadosService.update).not.toHaveBeenCalled();
     });
 
     it('debe retornar 200 al actualizar correctamente', async () => {
