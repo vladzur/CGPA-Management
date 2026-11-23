@@ -9,8 +9,6 @@ interface PrerenderWindow {
   __PRERENDER__?: boolean;
   /** Estado ya resuelto que la página publica para que el prerender lo grabe. */
   __PRERENDER_STATE__?: unknown;
-  /** Estado grabado en el HTML, que la aplicación lee antes de montar. */
-  __INITIAL_STATE__?: unknown;
 }
 
 function prerenderWindow(): PrerenderWindow {
@@ -45,6 +43,15 @@ export function publishPrerenderState(state: unknown): void {
  * Devuelve `null` cuando no hay estado (servidor de desarrollo, sin prerender).
  */
 export function readInitialState<T>(): T | null {
-  const state = prerenderWindow().__INITIAL_STATE__;
-  return state && typeof state === 'object' ? (state as T) : null;
+  // El estado viaja como JSON dentro de un script no ejecutable. Si el bloque
+  // falta o está corrupto, la aplicación arranca sin estado inicial.
+  const element = document.getElementById('__INITIAL_STATE__');
+  if (!element?.textContent) return null;
+
+  try {
+    const state = JSON.parse(element.textContent);
+    return state && typeof state === 'object' ? (state as T) : null;
+  } catch {
+    return null;
+  }
 }

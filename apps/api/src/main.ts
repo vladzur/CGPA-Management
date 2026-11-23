@@ -1,6 +1,8 @@
 import 'dotenv/config';
 import { NestFactory } from '@nestjs/core';
+import type { NestExpressApplication } from '@nestjs/platform-express';
 import { AppModule } from './app.module';
+import { configureSecurityHeaders } from './common/security/security-headers';
 import * as admin from 'firebase-admin';
 
 async function bootstrap() {
@@ -37,8 +39,21 @@ async function bootstrap() {
     }
   }
 
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
   app.setGlobalPrefix('api'); // Agregado para que coincida con el rewrite de Firebase Hosting
+
+  // Cabeceras de endurecimiento también para el origen directo de Cloud Run.
+  configureSecurityHeaders(app);
+
+  // Los reportes CSP llegan con content-types propios del navegador.
+  app.useBodyParser('json', {
+    type: [
+      'application/json',
+      'application/csp-report',
+      'application/reports+json',
+    ],
+  });
+
   app.enableCors(); // Opcional, por si el frontend y backend están en distintos puertos
   await app.listen(process.env.PORT ?? 3000);
 }

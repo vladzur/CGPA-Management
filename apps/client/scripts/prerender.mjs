@@ -88,8 +88,13 @@ function findChrome() {
  */
 const PRERENDER_FLAG_SCRIPT = '<script>window.__PRERENDER__=true;</script>';
 
-/** Prefijo del script con el estado que se incrusta en el HTML final. */
-const INITIAL_STATE_OPEN = '<script>window.__INITIAL_STATE__=';
+/** Identificador y etiquetas del bloque JSON con el estado inicial. */
+const INITIAL_STATE_ID = '__INITIAL_STATE__';
+const INITIAL_STATE_OPEN = `<script type="application/json" id="${INITIAL_STATE_ID}">`;
+const INITIAL_STATE_BLOCK =
+  /<script[^>]*\bid=["']__INITIAL_STATE__["'][^>]*>[\s\S]*?<\/script>/gi;
+const LEGACY_INITIAL_STATE_BLOCK =
+  /<script>window\.__INITIAL_STATE__=[\s\S]*?<\/script>/gi;
 const SCRIPT_CLOSE = '</script>';
 
 /** Inserta contenido al final del `<head>`, o al inicio si no lo encuentra. */
@@ -111,19 +116,11 @@ function injectIntoHead(html, content) {
  * servida por el service worker de una ejecución anterior.
  */
 function stripInjectedArtifacts(html) {
-  let result = html.split(PRERENDER_FLAG_SCRIPT).join('');
-
-  let start = result.indexOf(INITIAL_STATE_OPEN);
-  while (start !== -1) {
-    const end = result.indexOf(SCRIPT_CLOSE, start);
-    if (end === -1) break;
-
-    result =
-      result.slice(0, start) + result.slice(end + SCRIPT_CLOSE.length);
-    start = result.indexOf(INITIAL_STATE_OPEN);
-  }
-
-  return result;
+  return html
+    .split(PRERENDER_FLAG_SCRIPT)
+    .join('')
+    .replace(INITIAL_STATE_BLOCK, '')
+    .replace(LEGACY_INITIAL_STATE_BLOCK, '');
 }
 
 /**
@@ -162,6 +159,7 @@ function withInitialState(html, state) {
   if (!state) return html;
 
   // Se escapa `<` para que el JSON no pueda cerrar la etiqueta script.
+  // El bloque es de tipo application/json: no se ejecuta como JavaScript.
   const serialized = JSON.stringify(state).replaceAll(
     '<',
     String.raw`\u003c`,
@@ -169,7 +167,7 @@ function withInitialState(html, state) {
 
   return injectIntoHead(
     html,
-    `<script>window.__INITIAL_STATE__=${serialized};</script>`,
+    `${INITIAL_STATE_OPEN}${serialized}${SCRIPT_CLOSE}`,
   );
 }
 

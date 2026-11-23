@@ -8,6 +8,7 @@ import { FinanzasService } from './finanzas/finanzas.service';
 import { StorageService } from './storage/storage.service';
 import { ProyectosModule } from './proyectos/proyectos.module';
 import { AuditModule } from './common/audit/audit.module';
+import { CspReportModule } from './csp/csp-report.module';
 import { CryptoSealModule } from './common/crypto/crypto-seal.module';
 import { UsuariosModule } from './usuarios/usuarios.module';
 import { ComunicadosModule } from './comunicados/comunicados.module';
@@ -22,6 +23,7 @@ import { AccessPolicyGuard } from './common/access/access-policy.guard';
   imports: [
     ProyectosModule,
     AuditModule,
+    CspReportModule,
     CryptoSealModule,
     UsuariosModule,
     ComunicadosModule,

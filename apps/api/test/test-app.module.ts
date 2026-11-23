@@ -8,6 +8,8 @@ import { Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { AppController } from '../src/app.controller';
 import { AppService } from '../src/app.service';
+import { CspReportController } from '../src/csp/csp-report.controller';
+import { CspReportService } from '../src/csp/csp-report.service';
 import { TransactionsController } from '../src/transactions/transactions.controller';
 import { ProyectosController } from '../src/proyectos/proyectos.controller';
 import { UsuariosController } from '../src/usuarios/usuarios.controller';
@@ -45,6 +47,7 @@ import { AccessPolicyGuard } from '../src/common/access/access-policy.guard';
     ProyectosController,
     UsuariosController,
     ComunicadosController,
+    CspReportController,
     MensajesController,
     PagosController,
     DocumentosController,
@@ -55,6 +58,7 @@ import { AccessPolicyGuard } from '../src/common/access/access-policy.guard';
     FinanzasService,
     ProyectosService,
     UsuariosService,
+    CspReportService,
     ComunicadosService,
     MarkdownPolicyService,
     MensajesService,
