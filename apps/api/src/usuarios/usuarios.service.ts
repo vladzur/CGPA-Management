@@ -106,6 +106,10 @@ export class UsuariosService {
       .auth()
       .setCustomUserClaims(targetUid, { role: role, activo: true });
 
+    // Un cambio de claims no invalida el token ya emitido: se revoca para que
+    // el nuevo rol entre en vigencia de inmediato.
+    await admin.auth().revokeRefreshTokens(targetUid);
+
     return { message: 'Usuario aprobado exitosamente', targetUid, role };
   }
 
@@ -143,6 +147,9 @@ export class UsuariosService {
       role: newRole,
       activo: userData.activo,
     });
+
+    // El token vigente conservaría el rol anterior hasta una hora: se revoca.
+    await admin.auth().revokeRefreshTokens(targetUid);
 
     return {
       message: 'Rol actualizado exitosamente',
@@ -182,6 +189,11 @@ export class UsuariosService {
       activo: newState,
     });
 
+    // Al desactivar, el token vigente debe dejar de servir de inmediato.
+    if (!newState) {
+      await admin.auth().revokeRefreshTokens(targetUid);
+    }
+
     return {
       message: newState
         ? 'Usuario activado exitosamente'
@@ -211,6 +223,7 @@ export class UsuariosService {
     });
 
     await userRef.delete();
+    await admin.auth().revokeRefreshTokens(targetUid);
     await admin.auth().deleteUser(targetUid);
 
     return { message: 'Usuario eliminado exitosamente', targetUid };

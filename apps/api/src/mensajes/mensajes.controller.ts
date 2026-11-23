@@ -10,7 +10,6 @@ import {
   Post,
   Query,
   Req,
-  UseGuards,
 } from '@nestjs/common';
 import type { MensajeEstado } from '@cgpa/shared';
 import { MensajesService } from './mensajes.service';
@@ -23,8 +22,7 @@ import {
   UpdateMensajeSchema,
 } from './dto/update-mensaje.dto';
 import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
-import { FirebaseAuthGuard } from '../common/guards/firebase-auth.guard';
-import { AdminGuard } from '../common/guards/admin.guard';
+import { Access } from '../common/access/access.decorator';
 
 @Controller('mensajes')
 export class MensajesController {
@@ -35,6 +33,7 @@ export class MensajesController {
    * No requiere autenticación porque lo usan los apoderados.
    */
   @Post()
+  @Access('PUBLIC')
   @HttpCode(HttpStatus.CREATED)
   create(
     @Body(new ZodValidationPipe(CreateMensajeSchema))
@@ -55,13 +54,13 @@ export class MensajesController {
 
   /** Bandeja de la directiva: solo accesible para administradores activos. */
   @Get()
-  @UseGuards(FirebaseAuthGuard, AdminGuard)
+  @Access('ADMIN')
   findAll(@Query('estado') estado?: MensajeEstado) {
     return this.mensajesService.findAll(estado);
   }
 
   @Patch(':id')
-  @UseGuards(FirebaseAuthGuard, AdminGuard)
+  @Access('ADMIN')
   update(
     @Param('id') id: string,
     @Body(new ZodValidationPipe(UpdateMensajeSchema))
@@ -77,7 +76,7 @@ export class MensajesController {
   }
 
   @Delete(':id')
-  @UseGuards(FirebaseAuthGuard, AdminGuard)
+  @Access('ADMIN')
   remove(@Param('id') id: string, @Req() req: any) {
     return this.mensajesService.remove(id, req.user.uid, req.user.name);
   }

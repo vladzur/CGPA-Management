@@ -256,21 +256,25 @@ export class DocumentosService {
   async remove(id: string, userUid: string, userName: string) {
     const docRef = this.db.collection('documentos').doc(id);
     const doc = await docRef.get();
-    const data = doc.exists ? doc.data() : null;
+
+    // Un DELETE sobre un recurso inexistente responde 404 y no escribe auditoría.
+    if (!doc.exists) {
+      throw new NotFoundException(`Documento con id ${id} no encontrado`);
+    }
+
+    const data = doc.data();
 
     const batch = this.db.batch();
     batch.delete(docRef);
 
-    if (data) {
-      this.auditService.logActionWithTransactionOrBatch(batch, {
-        usuario_id: userUid,
-        nombre_usuario: userName,
-        accion: 'ELIMINAR_DOCUMENTO',
-        coleccion: 'documentos',
-        documento_id: id,
-        payload_anterior: data,
-      });
-    }
+    this.auditService.logActionWithTransactionOrBatch(batch, {
+      usuario_id: userUid,
+      nombre_usuario: userName,
+      accion: 'ELIMINAR_DOCUMENTO',
+      coleccion: 'documentos',
+      documento_id: id,
+      payload_anterior: data,
+    });
 
     await batch.commit();
     return { message: 'Documento eliminado correctamente' };

@@ -4,11 +4,28 @@ import {
   ExecutionContext,
   UnauthorizedException,
 } from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
 import * as admin from 'firebase-admin';
+import {
+  ACCESS_POLICY_KEY,
+  type AccessPolicy,
+} from '../access/access.decorator';
 
 @Injectable()
 export class FirebaseAuthGuard implements CanActivate {
+  constructor(private readonly reflector: Reflector) {}
+
   async canActivate(context: ExecutionContext): Promise<boolean> {
+    const policy = this.reflector.getAllAndOverride<AccessPolicy>(
+      ACCESS_POLICY_KEY,
+      [context.getHandler(), context.getClass()],
+    );
+
+    // Las rutas públicas (QR, transparencia, contacto) no exigen token.
+    if (policy === 'PUBLIC') {
+      return true;
+    }
+
     const request = context.switchToHttp().getRequest();
     const authHeader = request.headers.authorization;
 
@@ -21,7 +38,9 @@ export class FirebaseAuthGuard implements CanActivate {
     const token = authHeader.split('Bearer ')[1];
 
     try {
-      const decodedToken = await admin.auth().verifyIdToken(token);
+      // El segundo argumento comprueba revocación: un token de una cuenta
+      // desactivada, con rol cambiado o eliminada deja de ser válido.
+      const decodedToken = await admin.auth().verifyIdToken(token, true);
 
       // Inject user information into request object
       request.user = {
@@ -30,6 +49,7 @@ export class FirebaseAuthGuard implements CanActivate {
         name: decodedToken.name || decodedToken.email,
         role: decodedToken.role,
         activo: decodedToken.activo,
+        email_verified: decodedToken.email_verified === true,
       };
 
       return true;

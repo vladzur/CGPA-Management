@@ -1,5 +1,7 @@
 import { ExecutionContext, UnauthorizedException } from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
 import { FirebaseAuthGuard } from './firebase-auth.guard';
+import { ACCESS_POLICY_KEY } from '../access/access.decorator';
 import { createMockAuth } from '../../__mocks__/firebase-admin.mock';
 
 jest.mock('firebase-admin', () => ({
@@ -13,12 +15,15 @@ import * as admin from 'firebase-admin';
  */
 function createMockExecutionContext(
   headers: Record<string, string> = {},
+  handler: () => unknown = () => undefined,
 ): ExecutionContext {
   const request = { headers, user: undefined as any };
   return {
     switchToHttp: () => ({
       getRequest: () => request,
     }),
+    getHandler: () => handler,
+    getClass: () => class {},
   } as unknown as ExecutionContext;
 }
 
@@ -29,7 +34,7 @@ describe('FirebaseAuthGuard', () => {
   beforeEach(() => {
     mockAuth = createMockAuth();
     (admin.auth as jest.Mock).mockReturnValue(mockAuth);
-    guard = new FirebaseAuthGuard();
+    guard = new FirebaseAuthGuard(new Reflector());
   });
 
   afterEach(() => jest.clearAllMocks());
@@ -59,6 +64,7 @@ describe('FirebaseAuthGuard', () => {
       name: 'Tester',
       role: 'ADMIN',
       activo: true,
+      email_verified: true,
     };
     mockAuth.verifyIdToken.mockResolvedValue(decodedToken as any);
 
@@ -68,6 +74,8 @@ describe('FirebaseAuthGuard', () => {
     };
     const ctx = {
       switchToHttp: () => ({ getRequest: () => request }),
+      getHandler: () => () => undefined,
+      getClass: () => class {},
     } as unknown as ExecutionContext;
 
     const result = await guard.canActivate(ctx);
@@ -79,7 +87,11 @@ describe('FirebaseAuthGuard', () => {
       name: 'Tester',
       role: 'ADMIN',
       activo: true,
+      email_verified: true,
     });
+
+    // El segundo argumento exige comprobar la revocación del token.
+    expect(mockAuth.verifyIdToken).toHaveBeenCalledWith('valid-token', true);
   });
 
   it('debe usar email como name si name no está presente en el token', async () => {
@@ -98,10 +110,21 @@ describe('FirebaseAuthGuard', () => {
     };
     const ctx = {
       switchToHttp: () => ({ getRequest: () => request }),
+      getHandler: () => () => undefined,
+      getClass: () => class {},
     } as unknown as ExecutionContext;
 
     await guard.canActivate(ctx);
 
     expect(request.user.name).toBe('sin-nombre@test.cl');
+  });
+
+  it('debe ignorar el token en una ruta PUBLIC aunque no haya Authorization', async () => {
+    const handler = () => undefined;
+    Reflect.defineMetadata(ACCESS_POLICY_KEY, 'PUBLIC', handler);
+    const ctx = createMockExecutionContext({}, handler);
+
+    await expect(guard.canActivate(ctx)).resolves.toBe(true);
+    expect(mockAuth.verifyIdToken).not.toHaveBeenCalled();
   });
 });

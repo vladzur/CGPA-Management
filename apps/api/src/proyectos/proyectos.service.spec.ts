@@ -319,7 +319,13 @@ describe('ProyectosService', () => {
         { id: 'txn-1', data: { monto: 1000 } },
       ]);
 
-      // Primero: collection('transacciones').where().limit().get() → non-empty
+      const docRef = createMockDocumentRef('proj-del');
+      docRef.get.mockResolvedValue(
+        createMockDocSnapshot('proj-del', makeProyecto()),
+      );
+
+      // Primero se comprueba la existencia del proyecto y luego la integridad
+      // referencial: collection('transacciones').where().limit().get() → non-empty
       const txnCollection = {
         where: jest.fn().mockReturnThis(),
         limit: jest.fn().mockReturnThis(),
@@ -328,12 +334,25 @@ describe('ProyectosService', () => {
 
       mockFirestore.collection.mockImplementation((name: string) => {
         if (name === 'transacciones') return txnCollection as any;
-        return { doc: jest.fn() } as any;
+        return { doc: jest.fn().mockReturnValue(docRef) } as any;
       });
 
       await expect(
         service.remove('proj-del', 'uid-admin', 'Admin'),
       ).rejects.toThrow(BadRequestException);
+    });
+
+    it('debe lanzar NotFoundException si el proyecto no existe', async () => {
+      const docRef = createMockDocumentRef('proj-inexistente');
+      docRef.get.mockResolvedValue(createMissingDocSnapshot());
+
+      mockFirestore.collection.mockReturnValue({
+        doc: jest.fn().mockReturnValue(docRef),
+      } as any);
+
+      await expect(
+        service.remove('proj-inexistente', 'uid-admin', 'Admin'),
+      ).rejects.toThrow(NotFoundException);
     });
 
     it('debe eliminar el proyecto y registrar auditoría', async () => {

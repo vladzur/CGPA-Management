@@ -79,7 +79,8 @@ describe('ProyectosController (e2e)', () => {
 
   describe('GET /proyectos', () => {
     it('debe retornar 401 sin token', async () => {
-      await request(app.getHttpServer()).get('/proyectos').expect(401);
+      // La lectura de proyectos es pública por transparencia (RN-02).
+      await request(app.getHttpServer()).get('/proyectos').expect(200);
     });
 
     it('debe retornar 200 con lista de proyectos', async () => {

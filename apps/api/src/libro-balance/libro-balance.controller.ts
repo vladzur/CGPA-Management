@@ -4,11 +4,10 @@ import {
   Body,
   Req,
   Res,
-  UseGuards,
   StreamableFile,
 } from '@nestjs/common';
 import type { Response } from 'express';
-import { FirebaseAuthGuard } from '../common/guards/firebase-auth.guard';
+import { Access } from '../common/access/access.decorator';
 import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
 import { LibroBalanceService } from './libro-balance.service';
 import {
@@ -21,7 +20,7 @@ export class LibroBalanceController {
   constructor(private readonly libroBalanceService: LibroBalanceService) {}
 
   @Post('generar')
-  @UseGuards(FirebaseAuthGuard)
+  @Access('ADMIN')
   async generar(
     @Body(new ZodValidationPipe(GenerateBalanceBookSchema))
     dto: GenerateBalanceBookDto,
