@@ -2,9 +2,11 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  ForbiddenException,
 } from '@nestjs/common';
 import * as admin from 'firebase-admin';
 import { AuditService } from '../common/audit/audit.service';
+import { isRegistrationEnabled } from './registration-policy';
 
 @Injectable()
 export class UsuariosService {
@@ -15,6 +17,12 @@ export class UsuariosService {
   }
 
   async registerUser(uid: string, email: string, name: string) {
+    if (!isRegistrationEnabled()) {
+      throw new ForbiddenException(
+        'El registro es por invitación. Solicita una invitación a la directiva del CGPA.',
+      );
+    }
+
     const userRef = this.db.collection('usuarios').doc(uid);
     const doc = await userRef.get();
 
