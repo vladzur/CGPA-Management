@@ -108,3 +108,55 @@ jobs:
             --quiet \
             --tag "$SAFE_TAG" \
             --update-env-vars=FIREBASE_STORAGE_BUCKET=${{ secrets.FIREBASE_STORAGE_BUCKET }},DOCUMENT_SALT=${{ secrets.DOCUMENT_SALT }},VERIFICATION_BASE_URL=${{ secrets.VERIFICATION_BASE_URL }},CGPA_RUT=${{ secrets.CGPA_RUT }},PUBLIC_API_URL=https://cgpagrahambell.cl/api,CLIENT_BASE_URL=https://cgpagrahambell.cl,PAGOS_COLECCION=pagos,PAGO_TTL_DIAS=7,KHIPU_API_BASE_URL=https://payment-api.khipu.com/v3,KHIPU_API_KEY=${{ secrets.KHIPU_API_KEY }}
+
+  # ── 4. Firestore rules tests ──────────────────────────────────────────────
+  rules:
+    name: Firestore Rules Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - uses: pnpm/action-setup@v3
+        with:
+          version: 11
+
+      - name: Setup Java (Firestore emulator)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Run Firestore rules tests
+        run: pnpm --filter @cgpa/api test:rules
+
+  # ── 5. Deploy Firebase rules (fail the release if they cannot be applied) ─
+  deploy_rules:
+    name: Deploy Firebase Rules
+    needs: [test, rules]
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_CGPA_LICEO_AGB }}
+
+      - name: Deploy Firestore and Storage rules
+        run: |
+          npx --yes firebase-tools@15 deploy \
+            --only firestore:rules,storage \
+            --project cgpa-liceo-agb \
+            --non-interactive

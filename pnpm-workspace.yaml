@@ -6,6 +6,7 @@ allowBuilds:
   '@nestjs/core': true
   '@parcel/watcher': false
   protobufjs: true
+  re2: false
   unrs-resolver: true
 overrides:
   serialize-javascript: 7.0.5

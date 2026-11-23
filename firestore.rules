@@ -40,18 +40,29 @@ service cloud.firestore {
       allow delete: if false;
     }
 
-    // Comunicados: lectura pública, escritura solo desde backend
+    // Comunicados: contienen borradores y datos internos. El sitio los lee por
+    // la API (`/api/comunicados/publicos`), nunca directo desde Firestore.
     match /comunicados/{document=**} {
+      allow read, write: if false;
+    }
+
+    // Documentos: la verificación pública se hace por la API
+    // (`/api/documentos/validar/:uuid`), que devuelve un DTO mínimo. La lectura
+    // directa expondría el `salt` y otros campos internos.
+    match /documentos/{documentoId} {
+      allow read, write: if false;
+    }
+
+    // Respaldos públicos redactados: solo lectura pública. La escritura queda
+    // reservada al backend (Admin SDK), que valida que no haya datos personales.
+    match /respaldos_publicos/{respaldoId} {
       allow read: if true;
       allow write: if false;
     }
 
-    // Documentos: lectura pública para verificación, escritura solo desde backend
-    match /documentos/{documentoId} {
-      allow read: if true;
-      allow create: if false;
-      allow update: if false;
-      allow delete: if false;
+    // Notificaciones de pasarelas: diagnóstico interno. Solo backend.
+    match /pagos_notificaciones/{notificacionId} {
+      allow read, write: if false;
     }
 
     // Mensajes del formulario de contacto del sitio institucional.

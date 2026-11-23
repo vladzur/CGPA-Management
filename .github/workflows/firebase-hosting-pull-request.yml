@@ -48,7 +48,36 @@ jobs:
           path: apps/api/coverage/
           retention-days: 7
 
-  # ── 2. Preview Deploy (only after tests pass) ──────────────────────────────
+  # ── 2. Firestore rules tests ───────────────────────────────────────────────
+  rules:
+    name: Firestore Rules Tests
+    if: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - uses: pnpm/action-setup@v3
+        with:
+          version: 11
+
+      - name: Setup Java (Firestore emulator)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Run Firestore rules tests
+        run: pnpm --filter @cgpa/api test:rules
+
+  # ── 3. Preview Deploy (only after tests pass) ──────────────────────────────
   preview:
     name: Firebase Hosting Preview
     needs: test
