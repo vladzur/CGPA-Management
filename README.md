@@ -291,6 +291,10 @@ Para asignar el rol de Administrador Principal (`ADMIN`) a la primera cuenta y p
 - **Backend Centralizado:** Toda la creación, modificación y subida de archivos se realiza mediante el backend `apps/api`, donde NestJS utiliza el *Firebase Admin SDK* y valida los Custom Claims.
 - **Tipos Compartidos:** El paquete `packages/shared` actúa como la única fuente de la verdad para las interfaces (por ejemplo, esquemas de transacciones), impidiendo desajustes entre la API y el Frontend.
 
+### Informe de pentest y plan de remediación
+
+El [informe de prueba de penetración](docs/INFORME-PENTEST-CGPA-2026-11-23.md) del 23 de noviembre de 2026 y su [plan de remediación](docs/PLAN-REMEDIACION-PENTEST-CGPA-2026-11-23.md) documentan los hallazgos, las reglas de negocio afectadas, los PRs de corrección y los criterios de verificación. El plan se ejecuta en PRs separados y ninguna remediación que modifique una regla de negocio se mergea sin la aprobación registrada.
+
 ---
 
 ## 🧪 Tests
