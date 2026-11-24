@@ -185,6 +185,12 @@ El registro es agnóstico a la pasarela: cualquier implementación de `PasarelaP
 | `PAGOS_ERRORES_COLECCION` | No | Colección de errores de pasarelas (por defecto `pagos_errores`). |
 | `REGISTRO_HABILITADO` | No | `false` por defecto. Solo con `true` se permite `POST /api/usuarios/registro`; el sitio muestra el aviso de invitación. |
 
+Variables del cliente (`apps/client`):
+
+| Variable | Obligatoria | Descripción |
+|---|---|---|
+| `VITE_REGISTRO_HABILITADO` | No | Espejo de `REGISTRO_HABILITADO`. Si no vale `true`, `/registro-interno-agb` muestra el aviso y oculta el formulario. |
+
 > La **llave de cobrador** (merchant secret) no es la API Key. Se usa para verificar la firma HMAC
 > del webhook y no se guarda en el repositorio. Esta entrega no implementa la verificación de
 > `x-khipu-signature`; la verificación servidor a servidor es el control principal.
@@ -290,6 +296,7 @@ Para asignar el rol de Administrador Principal (`ADMIN`) a la primera cuenta y p
 
 ## 🔒 Seguridad y Consistencia
 
+- **CSP en Report-Only:** `firebase.json` publica `Content-Security-Policy-Report-Only` con `report-uri /api/csp-report`; la API aplica cabeceras de endurecimiento con Helmet. El estado inicial del prerender viaja como JSON no ejecutable.
 - **Zero Trust en Firestore:** Por defecto, las reglas de Firestore (`firestore.rules`) bloquean cualquier intento de escritura directa desde el cliente web.
 - **Acceso administrativo:** la API aplica la matriz de acceso de forma global. Toda ruta administrativa exige token válido, cuenta activa y rol `ADMIN`; las rutas públicas (QR, transparencia y contacto) no exigen token.
 - **Registro contenido:** `REGISTRO_HABILITADO=false` mantiene cerrado el registro público mientras la directiva define la política definitiva de invitaciones.
@@ -332,6 +339,7 @@ El backend (`apps/api`) cuenta con una suite de tests completa ejecutada con **J
 
 ### Tests E2E disponibles
 
+- **`csp-report.e2e-spec.ts`** — Reportes CSP públicos y límite de tasa.
 - **`proyectos.e2e-spec.ts`** — CRUD completo de proyectos con validación de presupuesto.
 - **`transactions.e2e-spec.ts`** — Creación, listado y filtrado de transacciones financieras.
 - **`usuarios.e2e-spec.ts`** — Registro, aprobación y gestión de roles de usuarios.
@@ -406,8 +414,10 @@ Push de tag vX.Y.Z
 ┌──────────────────────────────────────────────┐
 │  Release — Deploy to Production              │
 │  1. Unit Tests & Coverage ≥80%               │
-│  2. Deploy Frontend → Firebase Hosting live  │
-│  3. Deploy Backend  → Google Cloud Run       │
+│  2. Firestore Rules Tests                    │
+│  3. Deploy Frontend → Firebase Hosting live  │
+│  4. Deploy Backend  → Google Cloud Run       │
+│  5. Deploy Firebase Rules                    │
 └──────────────────────────────────────────────┘
 ```
 
@@ -416,7 +426,8 @@ Push de tag vX.Y.Z
 Se ejecuta en cada **Pull Request** hacia cualquier rama.
 
 1. **Unit Tests & Coverage** — Corre `pnpm test:cov --ci` en `apps/api`. Falla si algún umbral no se alcanza. El reporte de cobertura se sube como artefacto de GitHub Actions (retención 7 días).
-2. **Firebase Hosting Preview** — Si los tests pasan, despliega el frontend en un canal temporal de Firebase Hosting y publica la URL de preview como comentario en el PR.
+2. **Firestore Rules Tests** — Levanta el emulador con Temurin 17 y ejecuta los casos permitidos y denegados de `apps/api/test/rules/`.
+3. **Firebase Hosting Preview** — Si los tests pasan, despliega el frontend en un canal temporal de Firebase Hosting y publica la URL de preview como comentario en el PR.
 
 ### `CI — Merge to master` (`firebase-hosting-merge.yml`)
 
@@ -429,10 +440,12 @@ Se ejecuta en cada **push directo a `master`**.
 Se ejecuta al hacer **push de un tag semántico** (`v*.*.*`).
 
 1. **Unit Tests & Coverage** — Gate de calidad previo al deploy. El reporte de cobertura se guarda como artefacto de GitHub Actions durante 30 días.
-2. **Deploy Frontend → Firebase Hosting (live)** — Construye el cliente con Vite y lo publica en el canal `live` de Firebase Hosting.
-3. **Deploy Backend → Cloud Run** — Despliega la imagen del backend en Google Cloud Run (`southamerica-west1`) usando `gcloud run deploy --source .` autenticado con `GCP_CREDENTIALS`. El tag de Cloud Run replica el semver del release (`.` → `-`, ej: `v1.2.3` → `v1-2-3`).
+2. **Firestore Rules Tests** — Prueba las reglas contra el emulador antes de publicarlas.
+3. **Deploy Frontend → Firebase Hosting (live)** — Construye el cliente con Vite y lo publica en el canal `live` de Firebase Hosting.
+4. **Deploy Backend → Cloud Run** — Despliega la imagen del backend en Google Cloud Run (`southamerica-west1`) usando `gcloud run deploy --source .` autenticado con `GCP_CREDENTIALS`. El tag de Cloud Run replica el semver del release (`.` → `-`, ej: `v1.2.3` → `v1-2-3`).
+5. **Deploy Firebase Rules** — Publica `firestore.rules` y `storage.rules` con `firebase deploy --only firestore:rules,storage`; si el despliegue falla, el release falla.
 
-> Los jobs 2 y 3 del flujo de Release corren **en paralelo** una vez que el job de tests pasa (`needs: test`).
+> Los jobs de frontend, backend y reglas corren en paralelo una vez que pasan los tests. El despliegue de reglas no se salta: producción debe coincidir con el repositorio.
 
 ### Dockerfile (build multi-stage)
 
