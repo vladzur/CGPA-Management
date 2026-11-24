@@ -183,6 +183,7 @@ El registro es agnóstico a la pasarela: cualquier implementación de `PasarelaP
 | `PAGO_TTL_DIAS` | No | Vigencia de cada cobro en días (por defecto `7`). |
 | `PAGOS_COLECCION` | No | Colección de Firestore (por defecto `pagos`). En producción se fija a `pagos`; `pagos_sandbox` queda solo para pruebas locales aisladas. |
 | `PAGOS_ERRORES_COLECCION` | No | Colección de errores de pasarelas (por defecto `pagos_errores`). |
+| `REGISTRO_HABILITADO` | No | `false` por defecto. Solo con `true` se permite `POST /api/usuarios/registro`; el sitio muestra el aviso de invitación. |
 
 > La **llave de cobrador** (merchant secret) no es la API Key. Se usa para verificar la firma HMAC
 > del webhook y no se guarda en el repositorio. Esta entrega no implementa la verificación de
@@ -270,7 +271,9 @@ El sistema utiliza una arquitectura **Zero Trust** validando no solo en la base 
 
 Para asignar el rol de Administrador Principal (`ADMIN`) a la primera cuenta y poder gestionar la plataforma:
 
-1. Levanta la plataforma y **regístrate** en la ruta `/registro-interno-agb` o en la vista de registro.
+1. El registro público está cerrado por defecto. Para crear la primera cuenta, abre
+   temporalmente el registro con `REGISTRO_HABILITADO=true` y `VITE_REGISTRO_HABILITADO=true`,
+   regístrate en `/registro-interno-agb` y vuelve a dejar ambas variables en `false`.
 2. Abre una terminal en la carpeta `apps/api`.
 3. Configura tus credenciales de servicio de Google Cloud para apuntar a producción y ejecuta el script `set-admin.ts`:
    ```bash
@@ -288,6 +291,8 @@ Para asignar el rol de Administrador Principal (`ADMIN`) a la primera cuenta y p
 ## 🔒 Seguridad y Consistencia
 
 - **Zero Trust en Firestore:** Por defecto, las reglas de Firestore (`firestore.rules`) bloquean cualquier intento de escritura directa desde el cliente web.
+- **Acceso administrativo:** la API aplica la matriz de acceso de forma global. Toda ruta administrativa exige token válido, cuenta activa y rol `ADMIN`; las rutas públicas (QR, transparencia y contacto) no exigen token.
+- **Registro contenido:** `REGISTRO_HABILITADO=false` mantiene cerrado el registro público mientras la directiva define la política definitiva de invitaciones.
 - **Backend Centralizado:** Toda la creación, modificación y subida de archivos se realiza mediante el backend `apps/api`, donde NestJS utiliza el *Firebase Admin SDK* y valida los Custom Claims.
 - **Tipos Compartidos:** El paquete `packages/shared` actúa como la única fuente de la verdad para las interfaces (por ejemplo, esquemas de transacciones), impidiendo desajustes entre la API y el Frontend.
 
@@ -322,6 +327,9 @@ El backend (`apps/api`) cuenta con una suite de tests completa ejecutada con **J
 - **`proyectos.e2e-spec.ts`** — CRUD completo de proyectos con validación de presupuesto.
 - **`transactions.e2e-spec.ts`** — Creación, listado y filtrado de transacciones financieras.
 - **`usuarios.e2e-spec.ts`** — Registro, aprobación y gestión de roles de usuarios.
+- **`documentos.e2e-spec.ts`** — QR público y matriz de acceso de documentos.
+- **`libro-balance.e2e-spec.ts`** — Generación del libro de balance solo para ADMIN.
+- **`registro.e2e-spec.ts`** — Contención del registro público.
 - **`comunicados.e2e-spec.ts`** — Endpoint público, autenticación y CRUD de comunicados.
 - **`mensajes.e2e-spec.ts`** — Formulario público de contacto, validación, filtro anti-spam y control de acceso por rol de la bandeja de la directiva.
 - **`pagos.e2e-spec.ts`** — Botón de pago Khipu: creación pública de cuota y donación, validación, webhook JSON y form-urlencoded, consulta de estado e historial solo para ADMIN.

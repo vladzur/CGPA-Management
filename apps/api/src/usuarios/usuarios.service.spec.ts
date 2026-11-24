@@ -1,5 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
 import { UsuariosService } from './usuarios.service';
 import { AuditService } from '../common/audit/audit.service';
 import {
@@ -28,7 +32,10 @@ describe('UsuariosService', () => {
   };
   let mockAuditService: jest.Mocked<AuditService>;
 
+  const originalRegistrationFlag = process.env.REGISTRO_HABILITADO;
+
   beforeEach(async () => {
+    process.env.REGISTRO_HABILITADO = 'true';
     mockFirestore = createMockFirestore();
     (admin.firestore as any).FieldValue = {
       serverTimestamp: jest.fn(() => 'SERVER_TS'),
@@ -56,11 +63,30 @@ describe('UsuariosService', () => {
     service = module.get<UsuariosService>(UsuariosService);
   });
 
-  afterEach(() => jest.clearAllMocks());
+  afterEach(() => {
+    jest.clearAllMocks();
+    if (originalRegistrationFlag === undefined) {
+      delete process.env.REGISTRO_HABILITADO;
+    } else {
+      process.env.REGISTRO_HABILITADO = originalRegistrationFlag;
+    }
+  });
 
   // ─── registerUser ──────────────────────────────────────────────────────────
 
   describe('registerUser', () => {
+    it('debe rechazar el registro con 403 cuando el flag está cerrado', async () => {
+      process.env.REGISTRO_HABILITADO = 'false';
+
+      await expect(
+        service.registerUser('uid-cerrado', 'cerrado@test.cl', 'Cerrado'),
+      ).rejects.toThrow(ForbiddenException);
+
+      // No debe tocar Firestore ni Firebase Auth.
+      expect(mockFirestore.collection).not.toHaveBeenCalled();
+      expect(mockAuth.setCustomUserClaims).not.toHaveBeenCalled();
+    });
+
     it('debe crear el usuario con activo: false y rol PENDIENTE', async () => {
       const missingSnap = createMissingDocSnapshot();
       const docRef = createMockDocumentRef('new-uid');

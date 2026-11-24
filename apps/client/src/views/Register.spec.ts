@@ -1,4 +1,12 @@
-import { describe, it, expect, vi, beforeEach, beforeAll } from 'vitest';
+import {
+  describe,
+  it,
+  expect,
+  vi,
+  beforeEach,
+  beforeAll,
+  afterEach,
+} from 'vitest';
 import { mount, flushPromises } from '@vue/test-utils';
 import { createPinia, setActivePinia } from 'pinia';
 
@@ -42,8 +50,24 @@ describe('Register.vue - Google Sign-Up', () => {
   beforeEach(() => {
     setActivePinia(createPinia());
     vi.clearAllMocks();
+    // La mayoría de estas pruebas validan el formulario abierto.
+    vi.stubEnv('VITE_REGISTRO_HABILITADO', 'true');
     authState.claims = {};
     authState.token = null;
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it('debe mostrar el aviso de invitación y ocultar el formulario cuando el registro está cerrado', () => {
+    vi.stubEnv('VITE_REGISTRO_HABILITADO', 'false');
+
+    const wrapper = mount(Register);
+
+    expect(wrapper.text()).toContain('El registro es por invitación');
+    expect(wrapper.find('form').exists()).toBe(false);
+    expect(wrapper.find('button.btn-outline').exists()).toBe(false);
   });
 
   it('debe mostrar el botón de registro con Google', () => {
