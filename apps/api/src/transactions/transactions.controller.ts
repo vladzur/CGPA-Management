@@ -8,7 +8,6 @@ import {
   UseInterceptors,
   UploadedFile,
   BadRequestException,
-  UseGuards,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { FinanzasService } from '../finanzas/finanzas.service';
@@ -19,7 +18,7 @@ import {
   CreateTransactionSchema,
 } from './dto/create-transaction.dto';
 import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
-import { FirebaseAuthGuard } from '../common/guards/firebase-auth.guard';
+import { Access } from '../common/access/access.decorator';
 
 @Controller('transactions')
 export class TransactionsController {
@@ -30,7 +29,7 @@ export class TransactionsController {
   ) {}
 
   @Post()
-  @UseGuards(FirebaseAuthGuard)
+  @Access('ADMIN')
   @UseInterceptors(
     FileInterceptor('file', { limits: { fileSize: 5 * 1024 * 1024 } }),
   )
@@ -79,6 +78,7 @@ export class TransactionsController {
    * @param limit - Opcional: limita el número de transacciones a verificar (útil para pruebas)
    */
   @Get('verify-integrity')
+  @Access('PUBLIC')
   async verifyIntegrity(@Query('limit') limit?: string) {
     const limitNum = limit ? parseInt(limit, 10) : undefined;
     const reporte = await this.cryptoSealService.verifyChainIntegrity(limitNum);

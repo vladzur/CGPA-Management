@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 
@@ -14,6 +15,8 @@ import { DocumentosModule } from './documentos/documentos.module';
 import { LibroBalanceModule } from './libro-balance/libro-balance.module';
 import { MensajesModule } from './mensajes/mensajes.module';
 import { PagosModule } from './pagos/pagos.module';
+import { FirebaseAuthGuard } from './common/guards/firebase-auth.guard';
+import { AccessPolicyGuard } from './common/access/access-policy.guard';
 
 @Module({
   imports: [
@@ -28,6 +31,13 @@ import { PagosModule } from './pagos/pagos.module';
     PagosModule,
   ],
   controllers: [AppController, TransactionsController],
-  providers: [AppService, FinanzasService, StorageService],
+  providers: [
+    AppService,
+    FinanzasService,
+    StorageService,
+    // El orden importa: primero se valida el token y luego se aplica la política.
+    { provide: APP_GUARD, useClass: FirebaseAuthGuard },
+    { provide: APP_GUARD, useClass: AccessPolicyGuard },
+  ],
 })
 export class AppModule {}

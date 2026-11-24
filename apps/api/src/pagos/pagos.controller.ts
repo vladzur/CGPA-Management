@@ -6,13 +6,11 @@ import {
   HttpStatus,
   Param,
   Post,
-  UseGuards,
 } from '@nestjs/common';
 import { PagosService } from './pagos.service';
 import { CreatePagoDto, CreatePagoSchema } from './dto/create-pago.dto';
 import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
-import { FirebaseAuthGuard } from '../common/guards/firebase-auth.guard';
-import { AdminGuard } from '../common/guards/admin.guard';
+import { Access } from '../common/access/access.decorator';
 
 @Controller('pagos')
 export class PagosController {
@@ -23,6 +21,7 @@ export class PagosController {
    * Es público porque el botón de pago está en el sitio institucional.
    */
   @Post(':proveedor')
+  @Access('PUBLIC')
   @HttpCode(HttpStatus.CREATED)
   crearPago(
     @Param('proveedor') proveedor: string,
@@ -37,6 +36,7 @@ export class PagosController {
    * referencia y el pago se verifica servidor a servidor.
    */
   @Post(':proveedor/webhook')
+  @Access('PUBLIC')
   @HttpCode(HttpStatus.OK)
   async webhook(
     @Param('proveedor') proveedor: string,
@@ -57,20 +57,21 @@ export class PagosController {
    * interprete como un identificador de cobro.
    */
   @Get('errores')
-  @UseGuards(FirebaseAuthGuard, AdminGuard)
+  @Access('ADMIN')
   listarErroresPago() {
     return this.pagosService.listarErroresPago();
   }
 
   /** Consulta pública del estado, usada por la página de confirmación. */
   @Get(':transactionId')
+  @Access('PUBLIC')
   consultarPago(@Param('transactionId') transactionId: string) {
     return this.pagosService.consultarPago(transactionId);
   }
 
   /** Historial de cobros para la directiva. */
   @Get()
-  @UseGuards(FirebaseAuthGuard, AdminGuard)
+  @Access('ADMIN')
   listarPagos() {
     return this.pagosService.listarPagos();
   }

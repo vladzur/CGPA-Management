@@ -5,6 +5,7 @@
  * controllers HTTP sin conectarse a Firebase real.
  */
 import { Module } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
 import { AppController } from '../src/app.controller';
 import { AppService } from '../src/app.service';
 import { TransactionsController } from '../src/transactions/transactions.controller';
@@ -28,6 +29,13 @@ import {
 import { StorageService } from '../src/storage/storage.service';
 import { AuditService } from '../src/common/audit/audit.service';
 import { CryptoSealService } from '../src/common/crypto/crypto-seal.service';
+import { DocumentosController } from '../src/documentos/documentos.controller';
+import { DocumentosService } from '../src/documentos/documentos.service';
+import { DocumentoIntegrityService } from '../src/documentos/documento-integrity.service';
+import { LibroBalanceController } from '../src/libro-balance/libro-balance.controller';
+import { LibroBalanceService } from '../src/libro-balance/libro-balance.service';
+import { FirebaseAuthGuard } from '../src/common/guards/firebase-auth.guard';
+import { AccessPolicyGuard } from '../src/common/access/access-policy.guard';
 
 @Module({
   controllers: [
@@ -38,6 +46,8 @@ import { CryptoSealService } from '../src/common/crypto/crypto-seal.service';
     ComunicadosController,
     MensajesController,
     PagosController,
+    DocumentosController,
+    LibroBalanceController,
   ],
   providers: [
     AppService,
@@ -57,6 +67,11 @@ import { CryptoSealService } from '../src/common/crypto/crypto-seal.service';
     StorageService,
     AuditService,
     CryptoSealService,
+    DocumentoIntegrityService,
+    DocumentosService,
+    LibroBalanceService,
+    { provide: APP_GUARD, useClass: FirebaseAuthGuard },
+    { provide: APP_GUARD, useClass: AccessPolicyGuard },
   ],
 })
 export class TestAppModule {}

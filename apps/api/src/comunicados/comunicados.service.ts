@@ -122,21 +122,25 @@ export class ComunicadosService {
   async remove(id: string, userUid: string, userName: string) {
     const docRef = this.db.collection('comunicados').doc(id);
     const doc = await docRef.get();
-    const data = doc.exists ? doc.data() : null;
+
+    // Un DELETE sobre un recurso inexistente responde 404 y no escribe auditoría.
+    if (!doc.exists) {
+      throw new NotFoundException(`Comunicado con id ${id} no encontrado`);
+    }
+
+    const data = doc.data();
 
     const batch = this.db.batch();
     batch.delete(docRef);
 
-    if (data) {
-      this.auditService.logActionWithTransactionOrBatch(batch, {
-        usuario_id: userUid,
-        nombre_usuario: userName,
-        accion: 'ELIMINAR_COMUNICADO',
-        coleccion: 'comunicados',
-        documento_id: id,
-        payload_anterior: data,
-      });
-    }
+    this.auditService.logActionWithTransactionOrBatch(batch, {
+      usuario_id: userUid,
+      nombre_usuario: userName,
+      accion: 'ELIMINAR_COMUNICADO',
+      coleccion: 'comunicados',
+      documento_id: id,
+      payload_anterior: data,
+    });
 
     await batch.commit();
     return { message: 'Comunicado eliminado correctamente' };

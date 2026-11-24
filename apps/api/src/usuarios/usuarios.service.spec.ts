@@ -21,7 +21,11 @@ import * as admin from 'firebase-admin';
 describe('UsuariosService', () => {
   let service: UsuariosService;
   let mockFirestore: ReturnType<typeof createMockFirestore>;
-  let mockAuth: { setCustomUserClaims: jest.Mock; [k: string]: any };
+  let mockAuth: {
+    setCustomUserClaims: jest.Mock;
+    revokeRefreshTokens: jest.Mock;
+    [k: string]: any;
+  };
   let mockAuditService: jest.Mocked<AuditService>;
 
   beforeEach(async () => {
@@ -31,7 +35,10 @@ describe('UsuariosService', () => {
     };
     (admin.firestore as jest.Mock).mockReturnValue(mockFirestore);
 
-    mockAuth = { setCustomUserClaims: jest.fn().mockResolvedValue(undefined) };
+    mockAuth = {
+      setCustomUserClaims: jest.fn().mockResolvedValue(undefined),
+      revokeRefreshTokens: jest.fn().mockResolvedValue(undefined),
+    };
     (admin.auth as jest.Mock).mockReturnValue(mockAuth);
 
     mockAuditService = {
@@ -193,7 +200,7 @@ describe('UsuariosService', () => {
       );
     });
 
-    it('debe llamar a setCustomUserClaims con el nuevo rol al aprobar', async () => {
+    it('debe revocar los tokens vigentes al aprobar o cambiar el rol', async () => {
       const existingSnap = createMockDocSnapshot('uid-aprob', {
         uid: 'uid-aprob',
         activo: false,
@@ -213,6 +220,7 @@ describe('UsuariosService', () => {
         role: 'ADMIN',
         activo: true,
       });
+      expect(mockAuth.revokeRefreshTokens).toHaveBeenCalledWith('uid-aprob');
     });
 
     it('debe lanzar NotFoundException si el usuario a aprobar no existe', async () => {
@@ -227,6 +235,122 @@ describe('UsuariosService', () => {
       await expect(
         service.approveUser('uid-nx', 'EDITOR', 'uid-admin', 'Admin'),
       ).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  // ─── updateUserRole ────────────────────────────────────────────────────────
+
+  describe('updateUserRole', () => {
+    function setupUser(data: Record<string, any>) {
+      const docRef = createMockDocumentRef('uid-rol');
+      docRef.get.mockResolvedValue(createMockDocSnapshot('uid-rol', data));
+      mockFirestore.collection.mockReturnValue({
+        doc: jest.fn().mockReturnValue(docRef),
+      } as any);
+      mockFirestore.batch.mockReturnValue(createMockWriteBatch());
+      return docRef;
+    }
+
+    it('debe actualizar el rol y revocar los tokens vigentes', async () => {
+      setupUser({ uid: 'uid-rol', rol: 'APODERADO', activo: true });
+
+      const result = await service.updateUserRole(
+        'uid-rol',
+        'TESORERO',
+        'uid-admin',
+        'Admin',
+      );
+
+      expect(result).toMatchObject({ targetUid: 'uid-rol', role: 'TESORERO' });
+      expect(mockAuth.setCustomUserClaims).toHaveBeenCalledWith('uid-rol', {
+        role: 'TESORERO',
+        activo: true,
+      });
+      expect(mockAuth.revokeRefreshTokens).toHaveBeenCalledWith('uid-rol');
+    });
+
+    it('debe lanzar NotFoundException si el usuario no existe', async () => {
+      const docRef = createMockDocumentRef('uid-nx');
+      docRef.get.mockResolvedValue(createMissingDocSnapshot());
+      mockFirestore.collection.mockReturnValue({
+        doc: jest.fn().mockReturnValue(docRef),
+      } as any);
+
+      await expect(
+        service.updateUserRole('uid-nx', 'ADMIN', 'uid-admin', 'Admin'),
+      ).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  // ─── deactivateUser ────────────────────────────────────────────────────────
+
+  describe('deactivateUser', () => {
+    function setupUser(activo: boolean) {
+      const docRef = createMockDocumentRef('uid-estado');
+      docRef.get.mockResolvedValue(
+        createMockDocSnapshot('uid-estado', {
+          uid: 'uid-estado',
+          rol: 'APODERADO',
+          activo,
+        }),
+      );
+      mockFirestore.collection.mockReturnValue({
+        doc: jest.fn().mockReturnValue(docRef),
+      } as any);
+      mockFirestore.batch.mockReturnValue(createMockWriteBatch());
+      return docRef;
+    }
+
+    it('debe revocar los tokens al desactivar una cuenta', async () => {
+      setupUser(true);
+
+      const result = await service.deactivateUser(
+        'uid-estado',
+        'uid-admin',
+        'Admin',
+      );
+
+      expect(result).toMatchObject({ activo: false });
+      expect(mockAuth.revokeRefreshTokens).toHaveBeenCalledWith('uid-estado');
+    });
+
+    it('no debe revocar tokens al reactivar una cuenta', async () => {
+      setupUser(false);
+
+      const result = await service.deactivateUser(
+        'uid-estado',
+        'uid-admin',
+        'Admin',
+      );
+
+      expect(result).toMatchObject({ activo: true });
+      expect(mockAuth.revokeRefreshTokens).not.toHaveBeenCalled();
+    });
+  });
+
+  // ─── deleteUser ────────────────────────────────────────────────────────────
+
+  describe('deleteUser', () => {
+    it('debe revocar los tokens antes de eliminar la cuenta', async () => {
+      const docRef = createMockDocumentRef('uid-del');
+      docRef.get.mockResolvedValue(
+        createMockDocSnapshot('uid-del', {
+          uid: 'uid-del',
+          rol: 'APODERADO',
+          activo: true,
+        }),
+      );
+      mockFirestore.collection.mockReturnValue({
+        doc: jest.fn().mockReturnValue(docRef),
+      } as any);
+      mockAuth.deleteUser = jest.fn().mockResolvedValue(undefined);
+
+      const result = await service.deleteUser('uid-del', 'uid-admin', 'Admin');
+
+      expect(result).toMatchObject({ targetUid: 'uid-del' });
+      expect(docRef.delete).toHaveBeenCalled();
+      expect(mockAuth.revokeRefreshTokens).toHaveBeenCalledWith('uid-del');
+      expect(mockAuth.deleteUser).toHaveBeenCalledWith('uid-del');
     });
   });
 });

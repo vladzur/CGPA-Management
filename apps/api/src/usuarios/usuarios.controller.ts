@@ -6,27 +6,18 @@ import {
   Param,
   Get,
   Delete,
-  UseGuards,
   Req,
   ForbiddenException,
 } from '@nestjs/common';
 import { UsuariosService } from './usuarios.service';
-import { FirebaseAuthGuard } from '../common/guards/firebase-auth.guard';
-
-function requireAdmin(req: any) {
-  if (req.user.role !== 'ADMIN') {
-    throw new ForbiddenException(
-      'Solo los administradores pueden realizar esta accion',
-    );
-  }
-}
+import { Access } from '../common/access/access.decorator';
 
 @Controller('usuarios')
-@UseGuards(FirebaseAuthGuard)
 export class UsuariosController {
   constructor(private readonly usuariosService: UsuariosService) {}
 
   @Post('registro')
+  @Access('AUTHENTICATED')
   register(@Req() req: any) {
     return this.usuariosService.registerUser(
       req.user.uid,
@@ -36,24 +27,24 @@ export class UsuariosController {
   }
 
   @Get()
-  getAll(@Req() req: any) {
-    requireAdmin(req);
+  @Access('ADMIN')
+  getAll() {
     return this.usuariosService.getAllUsers();
   }
 
   @Get('pendientes')
-  getPending(@Req() req: any) {
-    requireAdmin(req);
+  @Access('ADMIN')
+  getPending() {
     return this.usuariosService.getPendingUsers();
   }
 
   @Patch(':uid/aprobar')
+  @Access('ADMIN')
   approve(
     @Param('uid') targetUid: string,
     @Body('rol') role: string,
     @Req() req: any,
   ) {
-    requireAdmin(req);
     if (!role) {
       throw new ForbiddenException(
         'Debe especificar un rol para aprobar al usuario',
@@ -68,12 +59,12 @@ export class UsuariosController {
   }
 
   @Patch(':uid/rol')
+  @Access('ADMIN')
   updateRole(
     @Param('uid') targetUid: string,
     @Body('rol') role: string,
     @Req() req: any,
   ) {
-    requireAdmin(req);
     if (!role) {
       throw new ForbiddenException('Debe especificar un rol');
     }
@@ -86,8 +77,8 @@ export class UsuariosController {
   }
 
   @Patch(':uid/activar')
+  @Access('ADMIN')
   toggleActive(@Param('uid') targetUid: string, @Req() req: any) {
-    requireAdmin(req);
     return this.usuariosService.deactivateUser(
       targetUid,
       req.user.uid,
@@ -96,8 +87,8 @@ export class UsuariosController {
   }
 
   @Delete(':uid')
+  @Access('ADMIN')
   delete(@Param('uid') targetUid: string, @Req() req: any) {
-    requireAdmin(req);
     return this.usuariosService.deleteUser(
       targetUid,
       req.user.uid,

@@ -7,7 +7,6 @@ import {
   Param,
   Delete,
   Query,
-  UseGuards,
   Req,
   Header,
   StreamableFile,
@@ -22,7 +21,7 @@ import {
   UpdateDocumentoSchema,
 } from './dto/update-documento.dto';
 import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
-import { FirebaseAuthGuard } from '../common/guards/firebase-auth.guard';
+import { Access } from '../common/access/access.decorator';
 
 @Controller('documentos')
 export class DocumentosController {
@@ -33,24 +32,25 @@ export class DocumentosController {
    * Debe declararse antes de GET :id para evitar colisión de rutas.
    */
   @Get('validar/:uuid')
+  @Access('PUBLIC')
   findByVerificationUuid(@Param('uuid') uuid: string) {
     return this.service.findByVerificationUuid(uuid);
   }
 
   @Get()
-  @UseGuards(FirebaseAuthGuard)
+  @Access('ADMIN')
   findAll(@Query('estado') estado?: string) {
     return this.service.findAll(estado);
   }
 
   @Get(':id')
-  @UseGuards(FirebaseAuthGuard)
+  @Access('ADMIN')
   findOne(@Param('id') id: string) {
     return this.service.findOne(id);
   }
 
   @Post()
-  @UseGuards(FirebaseAuthGuard)
+  @Access('ADMIN')
   create(
     @Body(new ZodValidationPipe(CreateDocumentoSchema)) dto: CreateDocumentoDto,
     @Req() req: any,
@@ -59,7 +59,7 @@ export class DocumentosController {
   }
 
   @Patch(':id')
-  @UseGuards(FirebaseAuthGuard)
+  @Access('ADMIN')
   update(
     @Param('id') id: string,
     @Body(new ZodValidationPipe(UpdateDocumentoSchema)) dto: UpdateDocumentoDto,
@@ -69,13 +69,13 @@ export class DocumentosController {
   }
 
   @Post(':id/sellar')
-  @UseGuards(FirebaseAuthGuard)
+  @Access('ADMIN')
   sellar(@Param('id') id: string, @Req() req: any) {
     return this.service.sellar(id, req.user.uid, req.user.name);
   }
 
   @Get(':id/pdf')
-  @UseGuards(FirebaseAuthGuard)
+  @Access('ADMIN')
   @Header('Content-Type', 'application/pdf')
   @Header('Content-Disposition', 'attachment; filename="documento.pdf"')
   async generatePdf(@Param('id') id: string) {
@@ -84,7 +84,7 @@ export class DocumentosController {
   }
 
   @Delete(':id')
-  @UseGuards(FirebaseAuthGuard)
+  @Access('ADMIN')
   remove(@Param('id') id: string, @Req() req: any) {
     return this.service.remove(id, req.user.uid, req.user.name);
   }

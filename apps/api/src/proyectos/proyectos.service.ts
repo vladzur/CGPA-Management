@@ -19,9 +19,7 @@ export class ProyectosService {
   }
 
   private computeAvanceFinanciero(ejecutado: number, estimado: number): number {
-    return estimado > 0
-      ? Math.min((ejecutado / estimado) * 100, 100)
-      : 0;
+    return estimado > 0 ? Math.min((ejecutado / estimado) * 100, 100) : 0;
   }
 
   async create(
@@ -162,6 +160,14 @@ export class ProyectosService {
   }
 
   async remove(id: string, userUid: string, userName: string) {
+    const docRef = this.db.collection('proyectos').doc(id);
+    const doc = await docRef.get();
+
+    // Un DELETE sobre un recurso inexistente responde 404 y no escribe auditoría.
+    if (!doc.exists) {
+      throw new NotFoundException(`Proyecto con id ${id} no encontrado`);
+    }
+
     // Solo permitir si no tiene transacciones asociadas (integridad referencial)
     const transaccionesSnapshot = await this.db
       .collection('transacciones')
@@ -175,23 +181,19 @@ export class ProyectosService {
       );
     }
 
-    const docRef = this.db.collection('proyectos').doc(id);
-    const doc = await docRef.get();
-    const data = doc.exists ? doc.data() : null;
+    const data = doc.data();
 
     const batch = this.db.batch();
     batch.delete(docRef);
 
-    if (data) {
-      this.auditService.logActionWithTransactionOrBatch(batch, {
-        usuario_id: userUid,
-        nombre_usuario: userName,
-        accion: 'ELIMINAR_PROYECTO',
-        coleccion: 'proyectos',
-        documento_id: id,
-        payload_anterior: data,
-      });
-    }
+    this.auditService.logActionWithTransactionOrBatch(batch, {
+      usuario_id: userUid,
+      nombre_usuario: userName,
+      accion: 'ELIMINAR_PROYECTO',
+      coleccion: 'proyectos',
+      documento_id: id,
+      payload_anterior: data,
+    });
 
     await batch.commit();
     return { message: 'Proyecto eliminado correctamente' };

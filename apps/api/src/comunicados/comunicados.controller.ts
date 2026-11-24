@@ -7,7 +7,6 @@ import {
   Param,
   Delete,
   Query,
-  UseGuards,
   Req,
   UseInterceptors,
   UploadedFile,
@@ -25,7 +24,7 @@ import {
   UpdateComunicadoSchema,
 } from './dto/update-comunicado.dto';
 import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
-import { FirebaseAuthGuard } from '../common/guards/firebase-auth.guard';
+import { Access } from '../common/access/access.decorator';
 
 @Controller('comunicados')
 export class ComunicadosController {
@@ -35,24 +34,25 @@ export class ComunicadosController {
   ) {}
 
   @Get('publicos')
+  @Access('PUBLIC')
   findAllPublic() {
     return this.comunicadosService.findAllPublic();
   }
 
   @Get()
-  @UseGuards(FirebaseAuthGuard)
+  @Access('ADMIN')
   findAll(@Query('estado') estado?: string) {
     return this.comunicadosService.findAll(estado);
   }
 
   @Get(':id')
-  @UseGuards(FirebaseAuthGuard)
+  @Access('ADMIN')
   findOne(@Param('id') id: string) {
     return this.comunicadosService.findOne(id);
   }
 
   @Post()
-  @UseGuards(FirebaseAuthGuard)
+  @Access('ADMIN')
   create(
     @Body(new ZodValidationPipe(CreateComunicadoSchema))
     createComunicadoDto: CreateComunicadoDto,
@@ -66,7 +66,7 @@ export class ComunicadosController {
   }
 
   @Patch(':id')
-  @UseGuards(FirebaseAuthGuard)
+  @Access('ADMIN')
   update(
     @Param('id') id: string,
     @Body(new ZodValidationPipe(UpdateComunicadoSchema))
@@ -82,13 +82,13 @@ export class ComunicadosController {
   }
 
   @Delete(':id')
-  @UseGuards(FirebaseAuthGuard)
+  @Access('ADMIN')
   remove(@Param('id') id: string, @Req() req: any) {
     return this.comunicadosService.remove(id, req.user.uid, req.user.name);
   }
 
   @Post('imagenes')
-  @UseGuards(FirebaseAuthGuard)
+  @Access('ADMIN')
   @UseInterceptors(
     FileInterceptor('file', { limits: { fileSize: 5 * 1024 * 1024 } }),
   )

@@ -550,21 +550,22 @@ describe('DocumentosService', () => {
       expect(entry).toMatchObject({ accion: 'ELIMINAR_DOCUMENTO' });
     });
 
-    it('no debe fallar si el documento ya no existe', async () => {
+    it('debe lanzar NotFoundException si el documento no existe', async () => {
       const docRef = createMockDocumentRef('doc-inexistente');
       const missingSnap = createMissingDocSnapshot();
       docRef.get.mockResolvedValue(missingSnap);
       setupCollection(docRef);
       const batch = setupBatch();
 
-      const result = await service.remove(
-        'doc-inexistente',
-        'uid-admin',
-        'Admin',
-      );
+      await expect(
+        service.remove('doc-inexistente', 'uid-admin', 'Admin'),
+      ).rejects.toThrow(NotFoundException);
 
-      expect(result).toEqual({ message: 'Documento eliminado correctamente' });
-      expect(batch.delete).toHaveBeenCalledWith(docRef);
+      // No se borra ni se audita un recurso que no existe.
+      expect(batch.delete).not.toHaveBeenCalled();
+      expect(
+        mockAuditService.logActionWithTransactionOrBatch,
+      ).not.toHaveBeenCalled();
     });
   });
 

@@ -23,6 +23,14 @@ import * as admin from 'firebase-admin';
 // Token "válido" para tests — el guard verifyIdToken retornará esto
 const VALID_TOKEN = 'valid-test-token';
 const MOCK_USER = {
+  uid: 'uid-admin',
+  email: 'admin@test.cl',
+  name: 'Admin Test',
+  role: 'ADMIN',
+  activo: true,
+};
+
+const MOCK_NON_ADMIN = {
   uid: 'uid-editor',
   email: 'editor@test.cl',
   name: 'Editor Test',
@@ -105,6 +113,23 @@ describe('TransactionsController (e2e)', () => {
         .expect(401);
 
       // Restaurar mock válido para el resto de tests
+      (admin.auth as jest.Mock).mockReturnValue({
+        verifyIdToken: jest.fn().mockResolvedValue(MOCK_USER),
+      });
+    });
+
+    it('debe retornar 403 para un usuario autenticado sin rol ADMIN', async () => {
+      (admin.auth as jest.Mock).mockReturnValue({
+        verifyIdToken: jest.fn().mockResolvedValue(MOCK_NON_ADMIN),
+      });
+
+      await request(app.getHttpServer())
+        .post('/transactions')
+        .set('Authorization', 'Bearer non-admin-token')
+        .send(validPayload)
+        .expect(403);
+
+      // Restaurar el ADMIN activo para el resto de tests
       (admin.auth as jest.Mock).mockReturnValue({
         verifyIdToken: jest.fn().mockResolvedValue(MOCK_USER),
       });
