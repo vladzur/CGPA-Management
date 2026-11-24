@@ -5,10 +5,14 @@ import { UpdateComunicadoDto } from './dto/update-comunicado.dto';
 import { Comunicado } from '@cgpa/shared';
 import { AuditService } from '../common/audit/audit.service';
 import { firestoreNow } from '../common/firestore-utils';
+import { MarkdownPolicyService } from '../common/markdown/markdown-policy.service';
 
 @Injectable()
 export class ComunicadosService {
-  constructor(private readonly auditService: AuditService) {}
+  constructor(
+    private readonly auditService: AuditService,
+    private readonly markdownPolicy: MarkdownPolicyService,
+  ) {}
 
   private get db() {
     return admin.firestore();
@@ -19,6 +23,10 @@ export class ComunicadosService {
     userUid: string,
     userName: string,
   ) {
+    // Defensa en profundidad: el pipe ya validó el DTO, pero el servicio no
+    // persiste contenido que no cumpla la política de Markdown.
+    this.markdownPolicy.assertValid(createComunicadoDto.contenido);
+
     const comunicadoRef = this.db.collection('comunicados').doc();
 
     const nuevoComunicado: Comunicado = {
@@ -89,6 +97,10 @@ export class ComunicadosService {
     userUid: string,
     userName: string,
   ) {
+    if (updateComunicadoDto.contenido !== undefined) {
+      this.markdownPolicy.assertValid(updateComunicadoDto.contenido);
+    }
+
     const docRef = this.db.collection('comunicados').doc(id);
     const doc = await docRef.get();
 

@@ -1,4 +1,5 @@
 import { ComunicadoSchema, Comunicado } from '@cgpa/shared';
+import { findMarkdownPolicyViolations } from '../../common/markdown/markdown-policy';
 
 export class CreateComunicadoDto implements Omit<
   Comunicado,
@@ -10,8 +11,20 @@ export class CreateComunicadoDto implements Omit<
   fecha_publicacion: Date;
 }
 
-export const CreateComunicadoSchema = ComunicadoSchema.omit({
+const CreateComunicadoBaseSchema = ComunicadoSchema.omit({
   fecha_creacion: true,
   creado_por: true,
   fecha_actualizacion: true,
 });
+
+export const CreateComunicadoSchema = CreateComunicadoBaseSchema.superRefine(
+  (value, ctx) => {
+    for (const violation of findMarkdownPolicyViolations(value.contenido)) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['contenido'],
+        message: violation.message,
+      });
+    }
+  },
+);
